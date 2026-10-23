@@ -1,32 +1,32 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import fs from "node:fs/promises";
-import os from "node:os";
-import path from "node:path";
+import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
+import mongoose from "mongoose";
+import { MongoMemoryServer } from "mongodb-memory-server";
+import { connectDb, disconnectDb } from "../db";
+import {
+  saveTranscript,
+  getTranscript,
+  listTranscripts,
+  deleteTranscript,
+} from "./index";
 
-const TEST_DIR = path.join(os.tmpdir(), `ty-transcriber-test-${Date.now()}`);
+let mongo: MongoMemoryServer;
 
-vi.stubEnv("TY_TRANSCRIBER_DATA_DIR", TEST_DIR, { override: true });
+beforeAll(async () => {
+  mongo = await MongoMemoryServer.create();
+  await connectDb(mongo.getUri());
+});
 
-let saveTranscript: (data: { id: string; title: string; transcript: string; sourceUrl: string }) => Promise<void>;
-let getTranscript: (id: string) => Promise<any | null>;
-let listTranscripts: () => Promise<any[]>;
-let deleteTranscript: (id: string) => Promise<void>;
+afterAll(async () => {
+  await disconnectDb();
+  await mongo.stop();
+});
 
 beforeEach(async () => {
-  await fs.mkdir(TEST_DIR, { recursive: true });
-  vi.resetModules();
-  const mod = await import("./index");
-  saveTranscript = mod.saveTranscript;
-  getTranscript = mod.getTranscript;
-  listTranscripts = mod.listTranscripts;
-  deleteTranscript = mod.deleteTranscript;
+  const collections = await mongoose.connection.db!.collections();
+  await Promise.all(collections.map((c) => c.deleteMany({})));
 });
 
-afterEach(async () => {
-  await fs.rm(TEST_DIR, { recursive: true, force: true });
-});
-
-describe("storage module", () => {
+describe("storage module (mongo)", () => {
   describe("saveTranscript + getTranscript", () => {
     it("saves and retrieves a transcript", async () => {
       await saveTranscript({
@@ -43,7 +43,7 @@ describe("storage module", () => {
         transcript: "This is the transcript text",
         sourceUrl: "https://youtube.com/watch?v=abc123",
       });
-      expect(result.createdAt).toBeDefined();
+      expect(result?.createdAt).toBeDefined();
     });
 
     it("returns null for a non-existent transcript", async () => {

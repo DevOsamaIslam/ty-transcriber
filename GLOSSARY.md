@@ -11,12 +11,19 @@ Search here first before reading entire files.
 - **`isPlaylist(parsed)`** — Returns `true` if the parsed URL is a playlist type.
 - **`extractId(parsed)`** — Returns the ID string from a parsed URL.
 
+### `app/modules/db/index.ts`
+- **`getMongoUri()`** — Returns `process.env.MONGODB_URI` or defaults to `mongodb://localhost:27017`.
+- **`getDbName()`** — Returns `process.env.MONGODB_DB_NAME` or defaults to `ty-transcriber`.
+- **`connectDb(uri?)`** — Lazy Mongoose connection (singleton promise). Safe to call repeatedly; returns the existing connection when ready. Used by: `storage` module.
+- **`disconnectDb()`** — Closes the Mongoose connection and resets the cached promise. Used by: tests.
+
 ### `app/modules/storage/index.ts`
-- **`Transcript`** (interface) — `{ id, title, transcript, sourceUrl, createdAt }`
-- **`saveTranscript(data)`** — Persists a transcript as a JSON file in the data directory. Sets `createdAt` timestamp.
+- **`Transcript`** (interface) — `{ id, title, transcript, sourceUrl, createdAt }` (public DTO; `createdAt` is an ISO string).
+- **`TranscriptDoc`** (Typegoose class) — Mongo document for stored transcripts. Stores the lookup id as **`videoId`** (unique, indexed — Mongoose reserves the `id` virtual, so `id` is mapped from `videoId` in the DTO). `createdAt`/`updatedAt` managed by Mongoose timestamps. Requires explicit `type: () => …` per `@prop` because esbuild does not emit decorator metadata.
+- **`saveTranscript(data)`** — Upserts the transcript into MongoDB by `videoId` via `findOneAndUpdate` (re-saving overwrites, preserving original `createdAt`).
 - **`getTranscript(id)`** — Retrieves a transcript by ID. Returns `null` if not found.
 - **`listTranscripts()`** — Returns all transcripts sorted by `createdAt` descending.
-- **`deleteTranscript(id)`** — Deletes a transcript file by ID.
+- **`deleteTranscript(id)`** — Deletes a transcript document by ID (no-op if missing).
 
 ### `app/modules/youtube/index.ts`
 - **`TranscriptNotFoundError`** (class) — Custom error thrown when a YouTube video has no captions. Signals the Whisper fallback in the `transcript` orchestrator.
