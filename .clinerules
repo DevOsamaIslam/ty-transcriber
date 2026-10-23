@@ -1,0 +1,109 @@
+# RTK
+
+Prefix every shell command with `rtk`: `rtk git status`, `rtk cargo test`,
+`rtk npm run build`, `rtk ls src/`. Keep the prefix inside chains:
+`rtk git add . && rtk git commit -m "msg"`. Commands RTK has no filter for
+run as-is, so the prefix is always safe.
+
+# Command output
+
+Command output here is condensed to save tokens, keeping every signal and
+dropping costly noise. Treat it as the complete result: run commands
+normally, and batch related commands into one call to avoid extra turns.
+Truncated results state their recovery path in their own output. Re-run a
+command as `rtk proxy <cmd>` only when its result is unusable: empty when
+output was clearly expected, contradicting its exit code, or garbled.
+
+## About RTK
+
+RTK (Rust Token Killer) is a CLI proxy that filters command output to save
+tokens; behavior and exit code are unchanged.
+
+- `rtk gain` / `rtk gain --history` — token savings, overall and per command.
+- `rtk proxy <cmd>` — run a command unfiltered, still tracked.
+- `RTK_DISABLED=1 <cmd>` — skip RTK for one command.
+- `rtk discover` — find past commands RTK could have condensed.
+
+# AI Agent Workflow
+
+Follow this workflow on **every** task, in order. Do not skip steps.
+
+## 1. Task intake — decide if an MCP server is needed
+
+Ask: does the task require data or services outside this repo?
+
+- **MCP needed** when the task needs external knowledge or services that aren't in
+  the codebase — e.g. MUI component/API docs (`mui-mcp`), library docs, or an
+  external service integration. Use only the servers relevant to the task.
+- **No MCP** for purely local work (editing existing modules, refactoring,
+  bug fixes, tests, docs). Do not fetch docs you already have in context.
+
+## 2. Discovery — read the glossary first, never whole files
+
+- Start every search at `GLOSSARY.md`. It indexes every function, variable,
+  type, class, and component with a one-line summary and its file path.
+- Use it to locate the target file, then read **only that file** (or a line
+  range). Do not read entire directory trees or guess at file locations.
+- If a symbol is missing from the glossary, add it (see step 7).
+
+## 3. DRY — reuse before writing
+
+- Before writing any function, check `GLOSSARY.md` (and `search_codebase`) for
+  an existing equivalent. Generic helpers live in `app/utils/` (e.g.
+  `runCommand`, `removeFile` in `app/utils/shell.ts`).
+- Business logic lives in modules under `app/modules/<name>/index.ts`. If the
+  function exists in a module, import it via that module's API — never
+  duplicate it.
+
+## 4. Modular architecture — each module is self-contained
+
+- Each module owns its code: `app/modules/<name>/index.ts` plus a colocated
+  `index.test.ts`. Module types, constants, and helpers stay inside the module.
+- Modules expose only their public API from `index.ts`; other modules and
+  routes import from the module, never from internals.
+- New domain logic → new module. Shared shell/fs helpers → `app/utils/`.
+
+## 5. Reusable components — build UI from primitives
+
+- All UI is composed from primitives in `app/components/ui/`, exported via the
+  barrel `app/components/ui/index.ts`: `ActionButton`, `Surface`, `InputField`,
+  `LoadingSpinner`, `EmptyState`.
+- If a primitive is missing, create it in `app/components/ui/` with a colocated
+  test and barrel export — do not hand-roll one-off variants inside feature
+  components.
+- Feature components (`app/components/`) compose primitives; routes compose
+  feature components.
+
+## 6. MUI modern design
+
+- Use MUI v6 components (`@mui/material`, `@mui/icons-material`). No raw CSS
+  files or inline `style` objects where the theme or `sx` prop suffices.
+- Respect the theme defined in `app/root.tsx` (primary color, component
+  defaults). Extend the theme there rather than overriding per-component.
+- If unsure about a component's API, consult the MUI MCP docs before writing.
+
+## 7. Maintain the glossary — every change, no exceptions
+
+After finishing code changes, update `GLOSSARY.md`:
+
+- **New** symbol → add an entry: `**name** (kind) — one-line summary of what it does.`
+- **Changed** behavior or signature → update that entry's summary.
+- **Removed** symbol → delete the entry.
+- Group entries under their existing sections (`Modules`, `Utilities`,
+  `Components (UI)`, `Routes`, `Entry Points`, `Configuration`).
+
+## 8. Verify before declaring done
+
+- Run tests: `rtk npm run test:run` — all existing and new tests must pass.
+- Run build: `rtk npm run build` — must succeed.
+
+## 9. Version bump — always the last step
+
+After the task is verified complete, bump the version in `package.json`:
+
+- **Feature added** (new module, component, route, or capability) →
+  minor: `rtk npm version minor --no-git-tag-version` (1.0.0 → 1.1.0).
+- **Bug fix or small change** (fix, tweak, refactor with no new capability) →
+  patch: `rtk npm version patch --no-git-tag-version` (1.0.0 → 1.0.1).
+
+Report the new version in the task summary.

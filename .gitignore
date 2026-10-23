@@ -1,0 +1,22 @@
+node_modules
+build
+
+# React Router generated types
+.react-router
+
+# Runtime data (user transcripts)
+server/data
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+
+# IDE / OS files
+.vscode
+.idea
+.DS_Store
+Thumbs.db
