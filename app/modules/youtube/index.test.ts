@@ -8,7 +8,7 @@ vi.mock("youtube-transcript", async (importOriginal) => {
   };
 });
 
-import { fetchYouTubeTranscript, TranscriptNotFoundError } from "./index";
+import { fetchYouTubeTranscript, getVideoMetadata, TranscriptNotFoundError } from "./index";
 import * as youtubeTranscript from "youtube-transcript";
 import { YoutubeTranscriptNotAvailableError } from "youtube-transcript";
 
@@ -20,6 +20,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.restoreAllMocks();
+  vi.unstubAllGlobals();
 });
 
 describe("fetchYouTubeTranscript", () => {
@@ -60,5 +61,53 @@ describe("fetchYouTubeTranscript", () => {
     await expect(fetchYouTubeTranscript("dQw4w9WgXcQ")).rejects.toThrow(
       "Network error"
     );
+  });
+});
+
+describe("getVideoMetadata", () => {
+  const VIDEO_URL = "https://youtube.com/watch?v=dQw4w9WgXcQ";
+
+  it("returns title, channel and url from the oEmbed API", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: vi.fn().mockResolvedValue({
+        title: "Rick Astley – Never Gonna Give You Up",
+        author_name: "Rick Astley",
+      }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await getVideoMetadata(VIDEO_URL);
+
+    expect(result).toEqual({
+      title: "Rick Astley – Never Gonna Give You Up",
+      channel: "Rick Astley",
+      url: VIDEO_URL,
+    });
+    expect(String(fetchMock.mock.calls[0][0])).toContain("youtube.com/oembed");
+  });
+
+  it("falls back to placeholders when oEmbed returns a non-ok status", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, status: 429 }));
+
+    const result = await getVideoMetadata(VIDEO_URL);
+
+    expect(result).toEqual({
+      title: "YouTube Video",
+      channel: "Unknown",
+      url: VIDEO_URL,
+    });
+  });
+
+  it("falls back to placeholders when the request fails", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("Network down")));
+
+    const result = await getVideoMetadata(VIDEO_URL);
+
+    expect(result).toEqual({
+      title: "YouTube Video",
+      channel: "Unknown",
+      url: VIDEO_URL,
+    });
   });
 });

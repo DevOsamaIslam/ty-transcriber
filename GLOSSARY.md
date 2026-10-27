@@ -29,6 +29,26 @@ Search here first before reading entire files.
 - **`TranscriptNotFoundError`** (class) — Custom error thrown when a YouTube video has no captions. Signals the Whisper fallback in the `transcript` orchestrator.
 - **`UNAVAILABLE_ERRORS`** (const) — Package error classes meaning "captions unavailable" (`YoutubeTranscriptNotAvailableError`, `YoutubeTranscriptDisabledError`, `YoutubeTranscriptVideoUnavailableError`, `YoutubeTranscriptNotAvailableLanguageError`).
 - **`fetchYouTubeTranscript(videoId)`** — Fetches captions via `youtube-transcript`'s named `fetchTranscript` export (v1.3.x has no default export). Returns joined text; maps `UNAVAILABLE_ERRORS` to `TranscriptNotFoundError`, rethrows everything else (e.g. network errors).
+- **`VideoMetadata`** (interface) — `{ title, channel, url }` — public metadata for a YouTube video.
+- **`getVideoMetadata(url)`** — Fetches title + channel via YouTube's public oEmbed endpoint (plain `fetch`, no key/yt-dlp). Never throws: any failure returns placeholder `{ title: "YouTube Video", channel: "Unknown" }`. Used by: `cli`.
+
+### `app/modules/openrouter/index.ts`
+- **`OPENROUTER_BASE_URL`** (const) — `https://openrouter.ai/api/v1`, the base URL the OpenAI SDK is pointed at (OpenRouter's API is OpenAI-compatible).
+- **`DEFAULT_OPENROUTER_MODEL`** (const) — Free model `google/gemma-4-26b-a4b-it:free` used unless `OPENROUTER_MODEL` is set.
+- **`VideoMetadataLike`** (type) — `{ title, channel, url }` accepted by `formatTranscript`.
+- **`TranscriptSources`** (type) — `{ captions?, whisper? }` — the one or two raw transcript sources available for a video.
+- **`OpenRouterError`** (class) — Custom error for missing API key / missing sources / empty completion.
+- **`getOpenRouterModel()`** — Returns `process.env.OPENROUTER_MODEL` or `DEFAULT_OPENROUTER_MODEL`.
+- **`listSources(sources)`** — Renders the provided transcript source(s) as labeled blocks (`=== CAPTIONS (YouTube subtitles) ===` / `=== WHISPER EXTRACTION ===`) for the LLM prompt.
+- **`formatTranscript(sources, metadata)`** — Calls OpenRouter via the official `openai` SDK (`new OpenAI({ apiKey, baseURL })`), asking the free LLM to merge and reformat the raw transcript sources into clean structured Markdown. Throws `OpenRouterError` when no sources exist, the key is missing, or the completion is empty. Used by: `cli`.
+
+### `app/modules/doc/index.ts`
+- **`DocMetadata`** (type) — `{ title, channel, url }` — written into the generated markdown as the header block.
+- **`DOC_OUTPUT_DIR`** (const) — Default output directory `transcripts` (gitignored).
+- **`slugify(title)`** — Turns a title into a safe filename slug (lowercase alnum + dashes); falls back to `"transcript"`.
+- **`buildMarkdown(metadata, body)`** — Builds the doc: starts with the metadata header (`# title`, `**Channel:**`, `**URL:**`), a `---` divider, then the transcript body.
+- **`docFileName(metadata, videoId)`** — `"<slugified title>-<videoId>.md"` (id suffix disambiguates same-titled videos).
+- **`writeMarkdownFile(metadata, videoId, body, dir?)`** — Creates `dir` (`transcripts` by default) and writes the built markdown; returns the file path.
 
 ### `app/modules/whisper/index.ts`
 - **`downloadAudio(url)`** — Downloads audio for the linked video only (`--no-playlist`, so `watch?v=…&list=…` URLs do not pull the whole playlist) via `yt-dlp`. Returns the local MP3 file path.
@@ -114,6 +134,9 @@ Search here first before reading entire files.
 ### `app/entry.server.tsx`
 - Omitted — React Router v8 provides a built-in default SSR entry (streaming, error boundaries, bot detection). A custom entry that wires `createRequestHandler` to a global build fails at runtime with "Cannot read properties of undefined (reading 'routes')"; if re-adding one, accept the framework-provided `EntryContext` in `handleRequest(request, status, headers, context)` instead.
 
+### `cli/index.ts` (project root)
+- Guided CLI binary (`npm run cli`, runs via `node --import tsx`): prompts for a YouTube URL, then shows step progress — `[1/5]` metadata (`getVideoMetadata`), `[2/5]` existing captions (`fetchYouTubeTranscript`; when found, download + Whisper are **skipped** — captions are the cheapest source), `[3/5]` Whisper extraction (only when captions are missing: `downloadAudio` → `decodeAudioToPCM` → `transcribeWithWhisper` → `cleanupAudio`), `[4/5]` LLM formatting — whichever transcript was obtained is fed into `formatTranscript` as a labeled source (OpenRouter via OpenAI SDK; warned+skipped without `OPENROUTER_API_KEY`) — `[5/5]` saves the markdown doc (`writeMarkdownFile`). Uses `node:readline/promises`; re-asks until a valid single-video URL is entered.
+
 ### `react-router.config.ts` (project root)
 - React Router v8 framework configuration (`ssr: true`). Must live at the project root next to `vite.config.ts`; a copy inside `app/` is ignored by the plugin.
 
@@ -121,7 +144,8 @@ Search here first before reading entire files.
 
 - **`vite.config.ts`** — Vite config with React Router plugin (skipped during tests) and Vitest configuration (jsdom environment).
 - **`vitest.setup.ts`** — Test setup with `@testing-library/jest-dom` and cleanup after each test.
-- **`tsconfig.json`** — TypeScript configuration with path aliases (`@/*` → `./app/*`).
-- **`package.json`** — Dependencies: React Router v8, MUI v6, Vitest, `@testing-library/react`, `youtube-transcript`, `@xenova/transformers`.
+- **`tsconfig.json`** — TypeScript configuration with path aliases (`@/*` → `./app/*`); includes `cli/**/*.ts`.
+- **`package.json`** — Dependencies: React Router v8, MUI v6, Vitest, `@testing-library/react`, `youtube-transcript`, `@xenova/transformers`, `openai` (OpenRouter via baseURL), dev `tsx` (CLI runner). Scripts include `cli` (`node --env-file-if-exists=.env --import tsx cli/index.ts`, so a local `.env` with `OPENROUTER_API_KEY`/`OPENROUTER_MODEL` is auto-loaded).
+- **`transcripts/`** — Gitignored runtime output directory for CLI-generated markdown docs.
 ### `app/components/ui/index.ts`
 - Barrel export for all UI primitives.

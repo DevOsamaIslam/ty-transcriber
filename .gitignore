@@ -6,6 +6,7 @@ build
 
 # Runtime data (user transcripts)
 server/data
+transcripts
 
 # Environment variables
 .env

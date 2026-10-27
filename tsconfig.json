@@ -1,5 +1,5 @@
 {
-  "include": ["vite.config.ts", "app/**/*.ts", "app/**/*.tsx"],
+  "include": ["vite.config.ts", "app/**/*.ts", "app/**/*.tsx", "cli/**/*.ts"],
   "compilerOptions": {
     "lib": ["DOM", "DOM.Iterable", "ES2022"],
     "module": "ESNext",

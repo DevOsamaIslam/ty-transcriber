@@ -1,12 +1,13 @@
 {
   "name": "ty-transcriber",
   "private": true,
-  "version": "0.2.0",
+  "version": "0.3.2",
   "type": "module",
   "scripts": {
     "dev": "react-router dev",
     "build": "react-router build",
     "start": "react-router serve",
+    "cli": "node --env-file-if-exists=.env --import tsx cli/index.ts",
     "test": "vitest",
     "test:run": "vitest run"
   },
@@ -22,6 +23,7 @@
     "approve": "^0.0.12",
     "isbot": "^5",
     "mongoose": "^9.9.5",
+    "openai": "^7.45.1",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-router": "^8.5.0",
@@ -38,6 +40,7 @@
     "@types/react-dom": "^19.0.0",
     "jsdom": "^26.0.0",
     "mongodb-memory-server": "^11.3.0",
+    "tsx": "^4.23.15",
     "typescript": "^5.7.0",
     "vite": "^7.0.0",
     "vitest": "^3.0.0"
