@@ -1,16 +1,16 @@
 import React from "react"
 import {
   Divider,
+  Grid,
   Link,
-  List,
   ListItem,
   ListItemText,
   Typography,
 } from "@mui/material"
+import { Transcript } from "../modules/storage"
 import { ActionButton } from "./ui/ActionButton"
 import { Markdown } from "./ui/Markdown"
 import { Surface } from "./ui/Surface"
-import { Transcript } from "../modules/storage"
 
 export type TranscriptViewerProps = {
   transcript: Transcript
@@ -52,12 +52,13 @@ export function TranscriptViewer({ transcript }: TranscriptViewerProps) {
         {title}
       </Typography>
 
-      {/* Transcript metadata above the body, shown as MUI key/value list items. */}
-      <List sx={{ mb: 2, minWidth: 0 }}>
-        <ListItem>
-          <ListItemText
-            primary="Source URL"
-            secondary={
+      {/* Transcript metadata as MUI key/value list items.
+          Two columns on medium+ screens, one column below. */}
+      <Grid container sx={{ mb: 2, minWidth: 0 }} spacing={2}>
+        {[
+          {
+            primary: "Source URL",
+            secondary: (
               <Link
                 component="a"
                 href={sourceUrl}
@@ -68,74 +69,62 @@ export function TranscriptViewer({ transcript }: TranscriptViewerProps) {
                   wordBreak: "break-all",
                   textDecoration: "underline",
                 }}
-                dir="auto">
+                dir="auto"
+              >
                 {sourceUrl}
               </Link>
-            }
-          />
-        </ListItem>
-
-        {channel && (
-          <ListItem>
-            <ListItemText
-              primary="Channel"
-              secondary={channel}
-              secondaryTypographyProps={{ dir: "auto" }}
-            />
-          </ListItem>
-        )}
-        <ListItem>
-          <ListItemText
-            primary="Source"
-            secondary={
-              source === "whisper"
-                ? "Whisper transcription"
-                : "YouTube captions"
-            }
-          />
-        </ListItem>
-        {playlistIndex != null && (
-          <ListItem>
-            <ListItemText
-              primary="Playlist position"
-              secondary={playlistIndex}
-            />
-          </ListItem>
-        )}
-        {language && (
-          <ListItem>
-            <ListItemText primary="Language" secondary={language} />
-          </ListItem>
-        )}
-        {uploadDate && (
-          <ListItem>
-            <ListItemText
-              primary="Upload date"
-              secondary={formatDate(uploadDate)}
-            />
-          </ListItem>
-        )}
-        {videoDate && (
-          <ListItem>
-            <ListItemText
-              primary="Video date"
-              secondary={formatDate(videoDate)}
-            />
-          </ListItem>
-        )}
-        {originalTitle && originalTitle !== title && (
-          <ListItem>
-            <ListItemText
-              primary="Original title"
-              secondary={originalTitle}
-              secondaryTypographyProps={{ dir: "auto" }}
-            />
-          </ListItem>
-        )}
-        <ListItem>
-          <ListItemText primary="Saved" secondary={formatDate(createdAt)} />
-        </ListItem>
-      </List>
+            ),
+          },
+          channel && {
+            primary: "Channel",
+            secondary: channel,
+            secondaryTypographyProps: { dir: "auto" },
+          },
+          {
+            primary: "Source",
+            secondary:
+              source === "whisper" ? "Whisper transcription" : "YouTube captions",
+          },
+          playlistIndex != null && {
+            primary: "Playlist position",
+            secondary: playlistIndex,
+          },
+          language && { primary: "Language", secondary: language },
+          uploadDate && {
+            primary: "Upload date",
+            secondary: formatDate(uploadDate),
+          },
+          videoDate && {
+            primary: "Video date",
+            secondary: formatDate(videoDate),
+          },
+          originalTitle && originalTitle !== title && {
+            primary: "Original title",
+            secondary: originalTitle,
+            secondaryTypographyProps: { dir: "auto" },
+          },
+          { primary: "Saved", secondary: formatDate(createdAt) },
+          {
+            primary: "ID",
+            secondary: id,
+            secondaryTypographyProps: {
+              sx: { fontFamily: "monospace", fontSize: "0.85rem" },
+            },
+          },
+        ]
+          .filter(Boolean)
+          .map((row, i) => (
+            <Grid key={i} item xs={12} md={6}>
+              <ListItem sx={{ pb: 1 }}>
+                <ListItemText
+                  primary={row.primary}
+                  secondary={row.secondary}
+                  secondaryTypographyProps={row.secondaryTypographyProps}
+                />
+              </ListItem>
+            </Grid>
+          ))}
+      </Grid>
       <Divider />
       {/* The transcript body is Markdown, not raw text. */}
       <Markdown>{body}</Markdown>

@@ -117,7 +117,7 @@ Search here first before reading entire files.
 
 ### `app/components/TranscriptViewer.tsx`
 - **`TranscriptViewerProps`** (type) — `{ transcript: Transcript }` — `Transcript` is the full storage DTO (title, channel, source, language, dates, source URL, id).
-- **`TranscriptViewer`** — MUI Surface showing the transcript title plus metadata (channel, source, language, upload/video date, source URL, id) rendered as MUI `List`/`ListItemText` key/value items above the body. The body is rendered as Markdown (headings, lists, links, bold/italic/code) through the `Markdown` primitive instead of raw text; all text uses `dir="auto"` so Arabic/RTL transcripts render right-to-left without forcing the whole page RTL. Includes a Copy-to-clipboard button.
+- **`TranscriptViewer`** — MUI Surface showing the transcript title plus metadata (channel, source, language, upload/video date, source URL, id) rendered as MUI `List`/`ListItemText` key/value items inside a responsive `Grid` (two columns on medium+ screens, one column below) above the body. The body is rendered as Markdown (headings, lists, links, bold/italic/code) through the `Markdown` primitive instead of raw text; all text uses `dir="auto"` so Arabic/RTL transcripts render right-to-left without forcing the whole page RTL. Includes a Copy-to-clipboard button.
 
 ### `app/components/UrlForm.tsx`
 - **`UrlFormProps`** (type) — `{ onSubmit?: ({ url, language }: { url: string; language: string }) => void, loading?: boolean, serverError?: string | null }`
