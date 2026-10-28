@@ -89,7 +89,7 @@ export async function action({ request }: ActionFunctionArgs) {
               title: result.title,
               channel: result.channel ?? "",
               url: result.sourceUrl,
-            });
+            }, languageStr);
           } catch (err) {
             const message = err instanceof Error ? err.message : String(err);
             updateJob(jobId, {

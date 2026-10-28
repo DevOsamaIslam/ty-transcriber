@@ -159,7 +159,7 @@ async function handleVideo(
     // 4. Format with the LLM (OpenRouter via the OpenAI SDK).
     console.log(`\n[4/${totalSteps}] Formatting transcript with the LLM…`);
     try {
-      body = await formatTranscript(sources, metadata);
+      body = await formatTranscript(sources, metadata, language);
       console.log("  ✓ Formatted.");
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
@@ -278,7 +278,7 @@ async function handlePlaylist(
       // Format with the LLM (OpenRouter via the OpenAI SDK).
       console.log("  Formatting transcript with the LLM…");
       try {
-        body = await formatTranscript(sources, metadata);
+        body = await formatTranscript(sources, metadata, language);
         console.log("  ✓ Formatted.");
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);

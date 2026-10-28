@@ -53,9 +53,25 @@ function listSources(sources: TranscriptSources): string[] {
   return blocks;
 }
 
+/** Extracts OpenRouter-specific details from an OpenAI SDK APIError. */
+function extractOpenRouterErrorDetails(err: unknown): {
+  status?: number;
+  type?: string;
+  code?: string | null;
+} {
+  if (!(err instanceof Error)) return {};
+  const apiErr = err as any;
+  return {
+    status: apiErr.status,
+    type: apiErr.type,
+    code: apiErr.code,
+  };
+}
+
 export async function formatTranscript(
   sources: TranscriptSources,
-  metadata: VideoMetadataLike
+  metadata: VideoMetadataLike,
+  language?: string
 ): Promise<string> {
   const blocks = listSources(sources);
   if (blocks.length === 0) {
@@ -70,27 +86,42 @@ export async function formatTranscript(
   }
 
   const client = new OpenAI({ apiKey, baseURL: OPENROUTER_BASE_URL });
-  const completion = await client.chat.completions.create({
-    model: getOpenRouterModel(),
-    messages: [
-      { role: "system", content: FORMAT_SYSTEM_PROMPT },
-      {
-        role: "user",
-        content: [
-          `Video: ${metadata.title}`,
-          `Channel: ${metadata.channel}`,
-          `URL: ${metadata.url}`,
-          "",
-          "Transcript source(s) captured:",
-          ...blocks,
-        ].join("\n"),
-      },
-    ],
-  });
+  try {
+    const completion = await client.chat.completions.create({
+      model: getOpenRouterModel(),
+      messages: [
+        { role: "system", content: FORMAT_SYSTEM_PROMPT },
+        {
+          role: "user",
+          content: [
+            `Video: ${metadata.title}`,
+            `Channel: ${metadata.channel}`,
+            `URL: ${metadata.url}`,
+            language ? `Language: ${language}` : "",
+            "",
+            "Transcript source(s) captured:",
+            ...blocks,
+          ].join("\n"),
+        },
+      ],
+    });
 
-  const text = completion.choices?.[0]?.message?.content;
-  if (!text) {
-    throw new OpenRouterError("OpenRouter returned an empty completion.");
+    const text = completion.choices?.[0]?.message?.content;
+    if (!text) {
+      throw new OpenRouterError("OpenRouter returned an empty completion.");
+    }
+    return text.trim();
+  } catch (err) {
+    if (err instanceof OpenRouterError) throw err;
+    const { status, type, code } = extractOpenRouterErrorDetails(err);
+    const extras: string[] = [];
+    if (status) extras.push(`HTTP ${status}`);
+    if (type) extras.push(`type: ${type}`);
+    if (code != null) extras.push(`code: ${code}`);
+    const suffix = extras.length ? ` [${extras.join(", ")}]` : "";
+    const baseMessage = err instanceof Error ? err.message : String(err);
+    throw new OpenRouterError(
+      `OpenRouter API request failed${suffix}: ${baseMessage}`
+    );
   }
-  return text.trim();
 }

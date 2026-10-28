@@ -131,4 +131,32 @@ describe("formatTranscript", () => {
       formatTranscript({ whisper: "raw text" }, METADATA)
     ).rejects.toThrow("429 rate limit");
   });
+
+  it("wraps OpenRouter API errors with status, type and code details", async () => {
+    process.env.OPENROUTER_API_KEY = "sk-test";
+    const apiErr: any = new Error("400 The model does not support Arabic.");
+    apiErr.status = 400;
+    apiErr.type = "invalid_request_error";
+    apiErr.code = 400;
+    apiErr.error = { message: "The model does not support Arabic.", type: "invalid_request_error", code: 400 };
+    mockHolder.chatCompletionsCreate.mockRejectedValue(apiErr);
+
+    await expect(
+      formatTranscript({ whisper: "raw Arabic text" }, METADATA, "ar")
+    ).rejects.toThrow(
+      "OpenRouter API request failed [HTTP 400, type: invalid_request_error, code: 400]: 400 The model does not support Arabic."
+    );
+  });
+
+  it("wraps API errors without a status code", async () => {
+    process.env.OPENROUTER_API_KEY = "sk-test";
+    const connErr: any = new Error("Connection error.");
+    mockHolder.chatCompletionsCreate.mockRejectedValue(connErr);
+
+    await expect(
+      formatTranscript({ whisper: "raw text" }, METADATA)
+    ).rejects.toThrow(
+      "OpenRouter API request failed: Connection error."
+    );
+  });
 });

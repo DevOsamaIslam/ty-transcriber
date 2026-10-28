@@ -48,7 +48,7 @@ Search here first before reading entire files.
 - **`OpenRouterError`** (class) — Custom error for missing API key / missing sources / empty completion.
 - **`getOpenRouterModel()`** — Returns `process.env.OPENROUTER_MODEL` or `DEFAULT_OPENROUTER_MODEL`.
 - **`listSources(sources)`** — Renders the provided transcript source(s) as labeled blocks (`=== CAPTIONS (YouTube subtitles) ===` / `=== WHISPER EXTRACTION ===`) for the LLM prompt.
-- **`formatTranscript(sources, metadata)`** — Calls OpenRouter via the official `openai` SDK (`new OpenAI({ apiKey, baseURL })`), asking the free LLM to merge and reformat the raw transcript sources into clean structured Markdown. Throws `OpenRouterError` when no sources exist, the key is missing, or the completion is empty. Used by: `cli`.
+- **`formatTranscript(sources, metadata, language?)`** — Calls OpenRouter via the official `openai` SDK (`new OpenAI({ apiKey, baseURL })`), asking the free LLM to merge and reformat the raw transcript sources into clean structured Markdown. Accepts an optional `language` (ISO 639-1) hint passed to the model so it responds in the transcript's language (e.g. Arabic). Wraps OpenAI SDK API errors into descriptive `OpenRouterError` messages including HTTP status, error type and code. Throws `OpenRouterError` when no sources exist, the key is missing, or the completion is empty. Used by: `cli`, `routes/index`.
 
 ### `app/modules/doc/index.ts`
 - **`DocMetadata`** (type) — `{ title, channel, url }` — written into the generated markdown as the header block.
