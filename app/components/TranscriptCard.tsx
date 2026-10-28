@@ -8,6 +8,8 @@ export type TranscriptCardProps = {
   preview: string;
   sourceUrl: string;
   createdAt: string;
+  /** Where the transcript came from — surfaces the "download/transcription skipped" hint. */
+  source?: "captions" | "whisper";
 };
 
 export function TranscriptCard({
@@ -16,6 +18,7 @@ export function TranscriptCard({
   preview,
   sourceUrl,
   createdAt,
+  source,
 }: TranscriptCardProps) {
   const date = new Date(createdAt).toLocaleDateString();
   return (
@@ -28,6 +31,16 @@ export function TranscriptCard({
           <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
             {preview}
           </Typography>
+          {source === "captions" && (
+            <Typography variant="caption" color="text.secondary" sx={{ mb: 1 }}>
+              Source: YouTube captions — download/transcription skipped
+            </Typography>
+          )}
+          {source === "whisper" && (
+            <Typography variant="caption" color="text.secondary" sx={{ mb: 1 }}>
+              Source: Whisper transcription
+            </Typography>
+          )}
           <Typography variant="caption" color="text.secondary">
             {date}
           </Typography>

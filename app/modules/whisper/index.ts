@@ -47,13 +47,28 @@ export async function decodeAudioToPCM(audioPath: string): Promise<Float32Array>
   );
 }
 
-export async function transcribeWithWhisper(audio: Float32Array): Promise<string> {
+/**
+ * Options for transcribing audio with Whisper.
+ */
+export interface TranscribeWithWhisperOptions {
+  /**
+   * ISO 639-1 language code (e.g. "en", "es", "fr") to transcribe in.
+   * When omitted, Whisper auto-detects the language from the audio.
+   */
+  language?: string;
+}
+
+export async function transcribeWithWhisper(
+  audio: Float32Array,
+  opts?: TranscribeWithWhisperOptions
+): Promise<string> {
   const transcriber = await pipeline("automatic-speech-recognition", WHISPER_MODEL);
   // chunk_length_s is required for audio longer than one 30s window;
-  // language is left unset so the model auto-detects it.
+  // language is left unset so the model auto-detects it, unless provided.
   const result = await transcriber(audio, {
     chunk_length_s: CHUNK_LENGTH_S,
     stride_length_s: STRIDE_LENGTH_S,
+    ...(opts?.language ? { language: opts.language } : {}),
   });
   return typeof result === "string" ? result : result.text;
 }
@@ -62,11 +77,14 @@ export async function cleanupAudio(audioPath: string): Promise<void> {
   await removeFile(audioPath);
 }
 
-export async function transcribeAudio(url: string): Promise<string> {
+export async function transcribeAudio(
+  url: string,
+  opts?: TranscribeWithWhisperOptions
+): Promise<string> {
   const audioPath = await downloadAudio(url);
   try {
     const audio = await decodeAudioToPCM(audioPath);
-    return await transcribeWithWhisper(audio);
+    return await transcribeWithWhisper(audio, opts);
   } finally {
     await cleanupAudio(audioPath);
   }

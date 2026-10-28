@@ -24,9 +24,24 @@ const UNAVAILABLE_ERRORS = [
   YoutubeTranscriptNotAvailableLanguageError,
 ];
 
-export async function fetchYouTubeTranscript(videoId: string): Promise<string> {
+/**
+ * Options for fetching a YouTube transcript.
+ */
+export interface FetchYouTubeTranscriptOptions {
+  /**
+   * ISO 639-1 language code (e.g. "en", "es", "fr") for the captions.
+   * When omitted, the video's default caption language is used.
+   */
+  language?: string;
+}
+
+export async function fetchYouTubeTranscript(
+  videoId: string,
+  opts?: FetchYouTubeTranscriptOptions
+): Promise<string> {
   try {
-    const segments = await fetchTranscript(videoId);
+    const config = opts?.language ? { lang: opts.language } : undefined;
+    const segments = await fetchTranscript(videoId, config);
     if (!segments || segments.length === 0) {
       throw new TranscriptNotFoundError(videoId);
     }

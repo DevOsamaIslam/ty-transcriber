@@ -19,6 +19,26 @@ export function runCommand(command: string): Promise<void> {
   });
 }
 
+/**
+ * Like `runCommand`, but resolves with the command's stdout so callers can
+ * consume yt-dlp's JSON output (e.g. listing a playlist without downloading).
+ */
+export async function runCommandWithOutput(command: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    exec(
+      command,
+      { maxBuffer: MAX_BUFFER_BYTES, timeout: TIMEOUT_MS },
+      (error, stdout) => {
+        if (error) {
+          reject(error);
+          return;
+        }
+        resolve(stdout);
+      }
+    );
+  });
+}
+
 export async function removeFile(filePath: string): Promise<void> {
   await unlink(filePath).catch((err: any) => {
     if (err.code !== "ENOENT") throw err;

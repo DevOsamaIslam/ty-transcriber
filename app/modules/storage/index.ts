@@ -13,6 +13,12 @@ export interface Transcript {
   title: string;
   transcript: string;
   sourceUrl: string;
+  channel?: string;
+  playlistId?: string;
+  /** Where the transcript came from: YouTube captions or Whisper. */
+  source?: "captions" | "whisper";
+  /** Language used for the transcript (ISO 639-1). Undefined = video's default language. */
+  language?: string;
   createdAt: string;
 }
 
@@ -39,6 +45,18 @@ class TranscriptDoc {
   @prop({ required: true, type: () => String })
   public sourceUrl!: string;
 
+  @prop({ type: () => String })
+  public channel?: string;
+
+  @prop({ type: () => String })
+  public playlistId?: string;
+
+  @prop({ type: () => String })
+  public source?: "captions" | "whisper";
+
+  @prop({ type: () => String })
+  public language?: string;
+
   public createdAt!: Date;
   public updatedAt!: Date;
 }
@@ -59,6 +77,10 @@ function toTranscript(doc: DocumentType<TranscriptDoc>): Transcript {
     title: doc.title,
     transcript: doc.transcript,
     sourceUrl: doc.sourceUrl,
+    channel: doc.channel ?? undefined,
+    playlistId: doc.playlistId ?? undefined,
+    source: doc.source ?? undefined,
+    language: doc.language ?? undefined,
     createdAt: doc.createdAt.toISOString(),
   };
 }
@@ -68,6 +90,10 @@ export async function saveTranscript(data: {
   title: string;
   transcript: string;
   sourceUrl: string;
+  channel?: string;
+  playlistId?: string;
+  source?: "captions" | "whisper";
+  language?: string;
 }): Promise<void> {
   const TranscriptModel = await getTranscriptModel();
   await TranscriptModel.findOneAndUpdate(
@@ -77,6 +103,10 @@ export async function saveTranscript(data: {
         title: data.title,
         transcript: data.transcript,
         sourceUrl: data.sourceUrl,
+        ...(data.channel !== undefined && { channel: data.channel }),
+        ...(data.playlistId !== undefined && { playlistId: data.playlistId }),
+        ...(data.source !== undefined && { source: data.source }),
+        ...(data.language !== undefined && { language: data.language }),
       },
     },
     { upsert: true, setDefaultsOnInsert: true }
@@ -89,9 +119,15 @@ export async function getTranscript(id: string): Promise<Transcript | null> {
   return doc ? toTranscript(doc) : null;
 }
 
-export async function listTranscripts(): Promise<Transcript[]> {
+export async function listTranscripts(filter?: {
+  channel?: string;
+  playlistId?: string;
+}): Promise<Transcript[]> {
   const TranscriptModel = await getTranscriptModel();
-  const docs = await TranscriptModel.find().sort({ createdAt: -1 }).exec();
+  const query: Record<string, string> = {};
+  if (filter?.channel) query.channel = filter.channel;
+  if (filter?.playlistId) query.playlistId = filter.playlistId;
+  const docs = await TranscriptModel.find(query).sort({ createdAt: -1 }).exec();
   return docs.map(toTranscript);
 }
 

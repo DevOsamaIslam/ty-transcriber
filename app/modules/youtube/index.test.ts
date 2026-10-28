@@ -32,7 +32,15 @@ describe("fetchYouTubeTranscript", () => {
 
     const result = await fetchYouTubeTranscript("dQw4w9WgXcQ");
     expect(result).toBe("Hello world This is a test");
-    expect(mockFetchTranscript).toHaveBeenCalledWith("dQw4w9WgXcQ");
+    expect(mockFetchTranscript).toHaveBeenCalledWith("dQw4w9WgXcQ", undefined);
+  });
+
+  it("passes the requested language to fetchTranscript", async () => {
+    mockFetchTranscript.mockResolvedValue([{ text: "Hola mundo", offset: 0, duration: 3 }]);
+
+    const result = await fetchYouTubeTranscript("dQw4w9WgXcQ", { language: "es" });
+    expect(result).toBe("Hola mundo");
+    expect(mockFetchTranscript).toHaveBeenCalledWith("dQw4w9WgXcQ", { lang: "es" });
   });
 
   it("throws TranscriptNotFoundError when captions are not available", async () => {

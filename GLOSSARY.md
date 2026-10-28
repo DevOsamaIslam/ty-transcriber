@@ -11,6 +11,11 @@ Search here first before reading entire files.
 - **`isPlaylist(parsed)`** — Returns `true` if the parsed URL is a playlist type.
 - **`extractId(parsed)`** — Returns the ID string from a parsed URL.
 
+### `app/modules/playlist/index.ts`
+- **`PlaylistVideo`** (type) — `{ id, url }` — one video of a playlist.
+- **`PlaylistInfo`** (type) — `{ id, title }` — playlist id + title.
+- **`fetchPlaylist(playlistUrl)`** — Lists every video of a YouTube playlist via `yt-dlp --flat-playlist --dump-single-json` (no downloads, no Whisper yet). Returns `{ info, videos }`. Used by: `transcript` module, `cli`.
+
 ### `app/modules/db/index.ts`
 - **`getMongoUri()`** — Returns `process.env.MONGODB_URI` or defaults to `mongodb://localhost:27017`.
 - **`getDbName()`** — Returns `process.env.MONGODB_DB_NAME` or defaults to `ty-transcriber`.
@@ -18,19 +23,20 @@ Search here first before reading entire files.
 - **`disconnectDb()`** — Closes the Mongoose connection and resets the cached promise. Used by: tests.
 
 ### `app/modules/storage/index.ts`
-- **`Transcript`** (interface) — `{ id, title, transcript, sourceUrl, createdAt }` (public DTO; `createdAt` is an ISO string).
-- **`TranscriptDoc`** (Typegoose class) — Mongo document for stored transcripts. Stores the lookup id as **`videoId`** (unique, indexed — Mongoose reserves the `id` virtual, so `id` is mapped from `videoId` in the DTO). `createdAt`/`updatedAt` managed by Mongoose timestamps. Requires explicit `type: () => …` per `@prop` because esbuild does not emit decorator metadata.
-- **`saveTranscript(data)`** — Upserts the transcript into MongoDB by `videoId` via `findOneAndUpdate` (re-saving overwrites, preserving original `createdAt`).
+- **`Transcript`** (interface) — `{ id, title, transcript, sourceUrl, channel?, playlistId?, source?, language?, createdAt }` (public DTO; `createdAt` is an ISO string; `source` is `"captions" | "whisper"`; `language` is the ISO 639-1 transcript language, undefined when the video's default language was used).
+- **`TranscriptDoc`** (Typegoose class) — Mongo document for stored transcripts. Stores the lookup id as **`videoId`** (unique, indexed — Mongoose reserves the `id` virtual, so `id` is mapped from `videoId` in the DTO). Also stores `channel`, `playlistId`, `source` and `language`. `createdAt`/`updatedAt` managed by Mongoose timestamps. Requires explicit `type: () => …` per `@prop` because esbuild does not emit decorator metadata.
+- **`saveTranscript(data)`** — Upserts the transcript into MongoDB by `videoId` via `findOneAndUpdate` (re-saving overwrites, preserving original `createdAt`); optionally stores `channel`, `playlistId`, `source` and `language`.
 - **`getTranscript(id)`** — Retrieves a transcript by ID. Returns `null` if not found.
-- **`listTranscripts()`** — Returns all transcripts sorted by `createdAt` descending.
+- **`listTranscripts(filter?)`** — Returns all transcripts sorted by `createdAt` descending; optional `{ channel?, playlistId? }` filter for the channel/playlist views.
 - **`deleteTranscript(id)`** — Deletes a transcript document by ID (no-op if missing).
 
 ### `app/modules/youtube/index.ts`
 - **`TranscriptNotFoundError`** (class) — Custom error thrown when a YouTube video has no captions. Signals the Whisper fallback in the `transcript` orchestrator.
 - **`UNAVAILABLE_ERRORS`** (const) — Package error classes meaning "captions unavailable" (`YoutubeTranscriptNotAvailableError`, `YoutubeTranscriptDisabledError`, `YoutubeTranscriptVideoUnavailableError`, `YoutubeTranscriptNotAvailableLanguageError`).
-- **`fetchYouTubeTranscript(videoId)`** — Fetches captions via `youtube-transcript`'s named `fetchTranscript` export (v1.3.x has no default export). Returns joined text; maps `UNAVAILABLE_ERRORS` to `TranscriptNotFoundError`, rethrows everything else (e.g. network errors).
+- **`FetchYouTubeTranscriptOptions`** (type) — `{ language?: string }` — ISO 639-1 language code for the captions; omitted means the video's default caption language.
+- **`fetchYouTubeTranscript(videoId, opts?)`** — Fetches captions via `youtube-transcript`'s named `fetchTranscript` export (v1.3.x has no default export), passing `{ lang }` when a language is requested. Returns joined text; maps `UNAVAILABLE_ERRORS` to `TranscriptNotFoundError`, rethrows everything else (e.g. network errors).
 - **`VideoMetadata`** (interface) — `{ title, channel, url }` — public metadata for a YouTube video.
-- **`getVideoMetadata(url)`** — Fetches title + channel via YouTube's public oEmbed endpoint (plain `fetch`, no key/yt-dlp). Never throws: any failure returns placeholder `{ title: "YouTube Video", channel: "Unknown" }`. Used by: `cli`.
+- **`getVideoMetadata(url)`** — Fetches title + channel via YouTube's public oEmbed endpoint (plain `fetch`, no key/yt-dlp). Never throws: any failure returns placeholder `{ title: "YouTube Video", channel: "Unknown" }`. Used by: `cli`, `transcript`.
 
 ### `app/modules/openrouter/index.ts`
 - **`OPENROUTER_BASE_URL`** (const) — `https://openrouter.ai/api/v1`, the base URL the OpenAI SDK is pointed at (OpenRouter's API is OpenAI-compatible).
@@ -53,19 +59,22 @@ Search here first before reading entire files.
 ### `app/modules/whisper/index.ts`
 - **`downloadAudio(url)`** — Downloads audio for the linked video only (`--no-playlist`, so `watch?v=…&list=…` URLs do not pull the whole playlist) via `yt-dlp`. Returns the local MP3 file path.
 - **`decodeAudioToPCM(audioPath)`** — Decodes the MP3 to raw 16 kHz mono Float32 PCM via ffmpeg (transformers.js cannot decode files in Node — no `AudioContext`) and returns a `Float32Array`.
-- **`transcribeWithWhisper(audio)`** — Loads the `Xenova/whisper-tiny` model via `@xenova/transformers` and transcribes raw PCM audio in 30 s chunks (`chunk_length_s`) so long recordings are fully transcribed; language is auto-detected.
+- **`TranscribeWithWhisperOptions`** (type) — `{ language?: string }` — ISO 639-1 language code to transcribe in; omitted lets Whisper auto-detect the language.
+- **`transcribeWithWhisper(audio, opts?)`** — Loads the `Xenova/whisper-tiny` model via `@xenova/transformers` and transcribes raw PCM audio in 30 s chunks (`chunk_length_s`) so long recordings are fully transcribed; passes `language` to the model when provided, otherwise auto-detects.
 - **`cleanupAudio(audioPath)`** — Deletes the temporary audio file.
-- **`transcribeAudio(url)`** — Orchestrates: download → decode → transcribe → cleanup. Returns the transcript text.
+- **`transcribeAudio(url, opts?)`** — Orchestrates: download → decode → transcribe → cleanup. Returns the transcript text. Threads `language` to `transcribeWithWhisper`.
 
 ### `app/modules/transcript/index.ts`
-- **`TranscriptResult`** (interface) — `{ id, title, transcript, sourceUrl, type? }`
-- **`getTranscriptForUrl(url)`** — Main entry point. Parses URL, tries YouTube captions first, falls back to Whisper, saves to storage, returns result. For playlists, returns a placeholder result. Used by: route actions.
+- **`TranscriptResult`** (interface) — `{ id, title, transcript, sourceUrl, channel?, playlistId?, source?, skipped?, type?, language? }` — `source` is `"captions" | "whisper"`; `skipped` is true when download/transcription was skipped because captions exist; `language` is the requested ISO 639-1 language (undefined = video's default language).
+- **`getTranscriptForUrl(url, opts?)`** — Transcribes a single video: YouTube captions first (download + Whisper skipped when captions exist), Whisper fallback otherwise; saves under the video's channel. `opts.language` is passed to captions/Whisper. Throws on playlist URLs. Used by: route actions.
+- **`getTranscriptsForPlaylist(playlistUrl, opts?)`** — Lists all videos of a playlist and transcribes each one (captions or Whisper), persisting each under `channel/playlist`; a failing video never aborts the rest. `opts.language` applies to every video. Used by: route actions, CLI.
 - **`TranscriptNotFoundError`** (re-exported) — Re-exported from `youtube` module.
 
 ## Utilities
 
 ### `app/utils/shell.ts`
 - **`runCommand(command)`** — Executes a shell command via `child_process.exec` with a raised `maxBuffer` (16 MiB) and a 10-minute timeout, returns a Promise.
+- **`runCommandWithOutput(command)`** — Like `runCommand`, but resolves with the command's stdout (e.g. yt-dlp JSON output).
 - **`removeFile(filePath)`** — Deletes a file via `fs.promises.unlink`, ignores ENOENT errors.
 
 ## Components (UI)
@@ -93,8 +102,8 @@ Search here first before reading entire files.
 
 
 ### `app/components/TranscriptCard.tsx`
-- **`TranscriptCardProps`** (type) — `{ id, title, preview, sourceUrl, createdAt }`
-- **`TranscriptCard`** — MUI Card showing title, preview text, date, and a View button linking to the transcript page.
+- **`TranscriptCardProps`** (type) — `{ id, title, preview, sourceUrl, createdAt, source? }` — `source` is `"captions" | "whisper"`.
+- **`TranscriptCard`** — MUI Card showing title, preview text, date, and a View button linking to the transcript page; shows a "download/transcription skipped" hint when the video had YouTube captions.
 
 ### `app/components/TranscriptList.tsx`
 - **`TranscriptListProps`** (type) — `{ transcripts: Transcript[] }`
@@ -105,13 +114,25 @@ Search here first before reading entire files.
 - **`TranscriptViewer`** — MUI Surface showing full transcript text with a Copy-to-clipboard button.
 
 ### `app/components/UrlForm.tsx`
-- **`UrlFormProps`** (type) — `{ onSubmit?: (url: string) => void, loading?: boolean, serverError?: string | null }`
-- **`UrlForm`** — URL entry form. With `onSubmit`: controlled form (test path). Without: React Router `<Form method="post">` posting `name="url"` to the route action. Validates non-empty input, shows `serverError`.
+- **`UrlFormProps`** (type) — `{ onSubmit?: ({ url, language }: { url: string; language: string }) => void, loading?: boolean, serverError?: string | null }`
+- **`UrlForm`** — URL entry form with a transcript language `LanguageSelect`. With `onSubmit`: controlled form (test path), called with `{ url, language }`. Without: React Router `<Form method="post">` posting `name="url"` and `name="language"` to the route action. Validates non-empty input, shows `serverError`.
+
+### `app/components/ui/LanguageSelect.tsx`
+- **`LanguageSelectProps`** (type) — `{ name?, value?, onChange?, label?, helperText?, error?, sx? }` — `value` is an ISO 639-1 code; `""` means auto-detect (video's default).
+- **`LanguageSelect`** — MUI `Select` with 10 languages (English, Spanish, Arabic, French, German, Portuguese, Italian, Russian, Japanese, Korean) plus an "Auto-detect (video's default)" option; forwards `name` so the value posts to the route action. Exports the `LANGUAGES` constant (11 entries).
+
+### `app/components/ui/StepsBox.tsx`
+- **`StepsBoxProps`** (type) — `{ steps: string[], activeIndex: number, heading? }`.
+- **`StepsBox`** — Animated step-by-step progress box inside a MUI `Surface`. Shows each step with a numbered circle (pending / active / complete) and a pulse animation on the active step, used while a transcription is in flight.
+
+### `app/components/UrlForm.tsx`
+- **`UrlFormProps`** (type) — `{ onSubmit?: ({ url, language, format }: { url: string; language: string; format: boolean }) => void, loading?: boolean, serverError?: string | null }`
+- **`UrlForm`** — URL entry form with a transcript language `LanguageSelect` and a "Format with LLM" checkbox. With `onSubmit`: controlled form (test path), called with `{ url, language, format }`. Without: React Router `<Form method="post">` posting `url`, `language` and `format` to the route action. While the action runs, renders an animated `StepsBox` instead of the form fields. Validates non-empty input, shows `serverError`.
 
 ## Routes
 
 ### `app/routes.ts`
-- Flat route config using `index()` and `route()` from `@react-router/dev/routes`.
+- Flat route config using `index()` and `route()` from `@react-router/dev/routes`. Routes: `/`, `/transcripts/playlist/:playlistId`, `/transcripts/channel/:channel`, `/transcripts/:id`.
 
 ### `app/root.tsx`
 - **`theme`** — MUI theme with custom primary color and component defaults.
@@ -119,12 +140,20 @@ Search here first before reading entire files.
 
 ### `app/routes/index.tsx`
 - **`loader`** — Calls `listTranscripts()`, returns plain object `{ transcripts }` (v8: no `json()` helper).
-- **`action`** — Reads `formData.get("url")`, calls `getTranscriptForUrl()`, redirects to `/transcripts/:id`. Errors return `data({ error }, { status })` (400/422).
+- **`action`** — Reads `formData.get("url")`, `formData.get("language")` and `formData.get("format")` (checkbox, `"on"` when checked). Playlists call `getTranscriptsForPlaylist(url, { language })` then redirect to `/transcripts/playlist/:playlistId`. Single video calls `getTranscriptForUrl(url, { language })`; when `format` is checked, the transcript is fed through `formatTranscript` and the formatted text is re-saved (falling back to raw on formatter failure), then redirects to `/transcripts/:id`. Errors return `data({ error }, { status })` (400/422).
 - **`Index`** — Home page. Uses `useLoaderData`, `useActionData`, `useNavigation` (submitting state) to render `UrlForm` and `TranscriptList`.
 
 ### `app/routes/transcripts.$id.tsx`
 - **`loader`** — Calls `getTranscript(id)`, redirects to home if not found, returns plain object `{ transcript }`.
 - **`TranscriptRoute`** — Uses `useLoaderData` to render `TranscriptViewer`.
+
+### `app/routes/transcriptsPlaylist.tsx`
+- **`loader`** — Calls `listTranscripts({ playlistId })`, redirects home if the param is missing, returns `{ transcripts, playlistId }`.
+- **`TranscriptsPlaylistRoute`** — Lists every transcript saved under a playlist (`channel/playlist` view).
+
+### `app/routes/transcriptsChannel.tsx`
+- **`loader`** — Calls `listTranscripts({ channel })`, redirects home if the param is missing, returns `{ transcripts, channel }`.
+- **`TranscriptsChannelRoute`** — Lists every transcript saved under a channel.
 
 ## Entry Points
 
@@ -135,7 +164,7 @@ Search here first before reading entire files.
 - Omitted — React Router v8 provides a built-in default SSR entry (streaming, error boundaries, bot detection). A custom entry that wires `createRequestHandler` to a global build fails at runtime with "Cannot read properties of undefined (reading 'routes')"; if re-adding one, accept the framework-provided `EntryContext` in `handleRequest(request, status, headers, context)` instead.
 
 ### `cli/index.ts` (project root)
-- Guided CLI binary (`npm run cli`, runs via `node --import tsx`): prompts for a YouTube URL, then shows step progress — `[1/5]` metadata (`getVideoMetadata`), `[2/5]` existing captions (`fetchYouTubeTranscript`; when found, download + Whisper are **skipped** — captions are the cheapest source), `[3/5]` Whisper extraction (only when captions are missing: `downloadAudio` → `decodeAudioToPCM` → `transcribeWithWhisper` → `cleanupAudio`), `[4/5]` LLM formatting — whichever transcript was obtained is fed into `formatTranscript` as a labeled source (OpenRouter via OpenAI SDK; warned+skipped without `OPENROUTER_API_KEY`) — `[5/5]` saves the markdown doc (`writeMarkdownFile`). Uses `node:readline/promises`; re-asks until a valid single-video URL is entered.
+- Guided CLI binary (`npm run cli`, runs via `node --import tsx`): prompts for a YouTube video **or playlist** URL, then an optional transcript language (empty = video's default language). Accepts a `--format` flag (default off): when set, the transcript is fed through the LLM formatter (`formatTranscript`) before saving; when omitted, the raw transcript is saved. Single video: `[1/N]` metadata (`getVideoMetadata`), `[2/N]` existing captions (`fetchYouTubeTranscript` with `language`; when found, download + Whisper are **skipped**), `[3/N]` Whisper extraction (only when captions are missing: `downloadAudio` → `decodeAudioToPCM` → `transcribeWithWhisper` with `language` → `cleanupAudio`), optional `[4/N]` LLM formatting (only with `--format`), `[last/N]` saves the markdown doc (`writeMarkdownFile`) under `transcripts/<channel>/`. Playlist: lists every video (`fetchPlaylist`), then per video — metadata, captions or "**download/transcription skipped**", optional Whisper download+transcribe fallback, optional LLM formatting, saves under `transcripts/<channel>/<playlist>/`; videos with no transcript at all are warned and skipped. Uses `node:readline/promises`; re-asks until a valid URL is entered.
 
 ### `react-router.config.ts` (project root)
 - React Router v8 framework configuration (`ssr: true`). Must live at the project root next to `vite.config.ts`; a copy inside `app/` is ignored by the plugin.
@@ -146,6 +175,6 @@ Search here first before reading entire files.
 - **`vitest.setup.ts`** — Test setup with `@testing-library/jest-dom` and cleanup after each test.
 - **`tsconfig.json`** — TypeScript configuration with path aliases (`@/*` → `./app/*`); includes `cli/**/*.ts`.
 - **`package.json`** — Dependencies: React Router v8, MUI v6, Vitest, `@testing-library/react`, `youtube-transcript`, `@xenova/transformers`, `openai` (OpenRouter via baseURL), dev `tsx` (CLI runner). Scripts include `cli` (`node --env-file-if-exists=.env --import tsx cli/index.ts`, so a local `.env` with `OPENROUTER_API_KEY`/`OPENROUTER_MODEL` is auto-loaded).
-- **`transcripts/`** — Gitignored runtime output directory for CLI-generated markdown docs.
+- **`transcripts/`** — Gitignored runtime output directory for CLI-generated markdown docs. Single videos go to `transcripts/<channel>/`; playlists to `transcripts/<channel>/<playlist>/`.
 ### `app/components/ui/index.ts`
 - Barrel export for all UI primitives.

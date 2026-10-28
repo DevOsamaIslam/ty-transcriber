@@ -50,6 +50,19 @@ describe("storage module (mongo)", () => {
       const result = await getTranscript("nonexistent");
       expect(result).toBeNull();
     });
+
+    it("saves and retrieves the language", async () => {
+      await saveTranscript({
+        id: "a",
+        title: "A",
+        transcript: "content a",
+        sourceUrl: "url-a",
+        language: "es",
+      });
+
+      const result = await getTranscript("a");
+      expect(result?.language).toBe("es");
+    });
   });
 
   describe("listTranscripts", () => {
@@ -96,6 +109,95 @@ describe("storage module (mongo)", () => {
 
       const list = await listTranscripts();
       expect(list.length).toBe(0);
+    });
+  });
+
+  describe("channel / playlist organization", () => {
+    it("saves and returns channel, playlistId and source", async () => {
+      await saveTranscript({
+        id: "a",
+        title: "A",
+        transcript: "content a",
+        sourceUrl: "url-a",
+        channel: "My Channel",
+        playlistId: "PLabc123",
+        source: "captions",
+      });
+
+      const result = await getTranscript("a");
+      expect(result).toMatchObject({
+        id: "a",
+        channel: "My Channel",
+        playlistId: "PLabc123",
+        source: "captions",
+      });
+    });
+
+    it("listTranscripts filters by playlistId", async () => {
+      await saveTranscript({
+        id: "a",
+        title: "A",
+        transcript: "content a",
+        sourceUrl: "url-a",
+        channel: "My Channel",
+        playlistId: "PLabc123",
+        source: "captions",
+      });
+      await saveTranscript({
+        id: "b",
+        title: "B",
+        transcript: "content b",
+        sourceUrl: "url-b",
+        channel: "My Channel",
+        playlistId: "PLother",
+        source: "whisper",
+      });
+      await saveTranscript({
+        id: "c",
+        title: "C",
+        transcript: "content c",
+        sourceUrl: "url-c",
+        channel: "My Channel",
+      });
+
+      const result = await listTranscripts({ playlistId: "PLabc123" });
+      expect(result).toHaveLength(1);
+      expect(result[0].id).toBe("a");
+    });
+
+    it("listTranscripts filters by channel", async () => {
+      await saveTranscript({
+        id: "a",
+        title: "A",
+        transcript: "content a",
+        sourceUrl: "url-a",
+        channel: "Channel One",
+      });
+      await saveTranscript({
+        id: "b",
+        title: "B",
+        transcript: "content b",
+        sourceUrl: "url-b",
+        channel: "Channel Two",
+      });
+
+      const result = await listTranscripts({ channel: "Channel One" });
+      expect(result).toHaveLength(1);
+      expect(result[0].id).toBe("a");
+    });
+
+    it("listTranscripts without a filter returns everything", async () => {
+      await saveTranscript({
+        id: "a",
+        title: "A",
+        transcript: "content a",
+        sourceUrl: "url-a",
+        channel: "Channel One",
+        playlistId: "PLabc123",
+      });
+
+      const result = await listTranscripts();
+      expect(result).toHaveLength(1);
     });
   });
 });

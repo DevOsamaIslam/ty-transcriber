@@ -125,6 +125,33 @@ describe("transcribeWithWhisper", () => {
       transcribeWithWhisper(new Float32Array(4))
     ).rejects.toThrow("Model load failed");
   });
+
+  it("passes the language to the Whisper transcriber when provided", async () => {
+    const mockTranscriber = vi.fn().mockResolvedValue({ text: "Hello world" });
+    mockHolder.pipeline.mockResolvedValue(mockTranscriber);
+
+    const audio = new Float32Array(4);
+    await transcribeWithWhisper(audio, { language: "es" });
+
+    expect(mockTranscriber).toHaveBeenCalledWith(audio, {
+      chunk_length_s: 30,
+      stride_length_s: 5,
+      language: "es",
+    });
+  });
+
+  it("leaves language unset when not provided", async () => {
+    const mockTranscriber = vi.fn().mockResolvedValue({ text: "Hello world" });
+    mockHolder.pipeline.mockResolvedValue(mockTranscriber);
+
+    const audio = new Float32Array(4);
+    await transcribeWithWhisper(audio);
+
+    expect(mockTranscriber).toHaveBeenCalledWith(audio, {
+      chunk_length_s: 30,
+      stride_length_s: 5,
+    });
+  });
 });
 
 describe("transcribeAudio", () => {

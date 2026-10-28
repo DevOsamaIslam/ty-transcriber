@@ -1,8 +1,14 @@
 #!/usr/bin/env node
 import { stdin as input, stdout as output } from "node:process";
-import { resolve } from "node:path";
+import { join, resolve } from "node:path";
 import { createInterface } from "node:readline/promises";
-import { parseYouTubeUrl, isPlaylist, extractId } from "../app/modules/url";
+import {
+  parseYouTubeUrl,
+  isPlaylist,
+  extractId,
+  type ParsedUrl,
+} from "../app/modules/url";
+import { fetchPlaylist } from "../app/modules/playlist";
 import {
   fetchYouTubeTranscript,
   TranscriptNotFoundError,
@@ -16,7 +22,7 @@ import {
 } from "../app/modules/whisper";
 import { formatTranscript } from "../app/modules/openrouter";
 import type { TranscriptSources } from "../app/modules/openrouter";
-import { writeMarkdownFile } from "../app/modules/doc";
+import { writeMarkdownFile, slugify } from "../app/modules/doc";
 
 async function main(): Promise<void> {
   const rl = createInterface({ input, output });
@@ -42,39 +48,187 @@ async function main(): Promise<void> {
     });
 
   try {
-    // 0. Ask for the URL (re-ask until it parses as a single video).
+    // 0. Ask for the URL (re-ask until it parses as a video or playlist).
     let url = "";
     while (!url) {
-      const answer = (await ask("Paste a YouTube video URL: ")).trim();
+      const answer = (await ask("Paste a YouTube video or playlist URL: ")).trim();
       if (!answer) {
         console.log("  Please enter a URL.");
         continue;
       }
       try {
-        const parsed = parseYouTubeUrl(answer);
-        if (isPlaylist(parsed)) {
-          console.log("  Playlists are not supported; enter a single video URL.");
-          continue;
-        }
+        parseYouTubeUrl(answer);
         url = answer;
       } catch (err) {
         console.log(`  ${err instanceof Error ? err.message : "Invalid URL."}`);
       }
     }
-    const videoId = extractId(parseYouTubeUrl(url));
+    const parsed = parseYouTubeUrl(url);
 
-    // 1. Metadata.
-    console.log("\n[1/5] Fetching video metadata…");
-    const metadata = await getVideoMetadata(url);
-    console.log(`  • ${metadata.title} — ${metadata.channel}`);
+    // 0.5. Ask for the transcript language (optional). When left empty, the
+    //    video's default language is used (captions default track or
+    //    Whisper auto-detection).
+    const languageAnswer = (await ask("Transcript language (optional, e.g. en/es/fr): ")).trim();
+    const language = languageAnswer || undefined;
 
-    // 2. Search for the existing transcript (YouTube captions). When found,
-    //    they are the cheapest, most accurate source — skip download + Whisper.
-    console.log("\n[2/5] Searching for an existing transcript…");
+    // --format flag: when set, the transcript is fed through the LLM
+    // formatter before saving. Defaults to off (raw transcript saved).
+    const format = process.argv.includes("--format");
+
+    if (isPlaylist(parsed)) {
+      await handlePlaylist(parsed, language, format);
+    } else {
+      await handleVideo(url, language, format);
+    }
+  } catch (err) {
+    console.error(`\n✗ ${err instanceof Error ? err.message : String(err)}`);
+    process.exitCode = 1;
+  } finally {
+    rl.close();
+  }
+}
+
+/** Single video: metadata → captions (skipping download/transcript when found)
+ *  → Whisper fallback → (optional) LLM formatting → markdown file under
+ *  transcripts/<channel>/. Set `format` to feed the transcript through the
+ *  formatter before saving. */
+async function handleVideo(
+  url: string,
+  language?: string,
+  format = false
+): Promise<void> {
+  const videoId = extractId(parseYouTubeUrl(url));
+  const totalSteps = format ? 5 : 4;
+
+  // 1. Metadata.
+  console.log(`\n[1/${totalSteps}] Fetching video metadata…`);
+  const metadata = await getVideoMetadata(url);
+  console.log(`  • ${metadata.title} — ${metadata.channel}`);
+
+  // 2. Search for the existing transcript (YouTube captions). When found,
+  //    they are the cheapest, most accurate source — skip download + Whisper.
+  console.log(`\n[2/${totalSteps}] Searching for an existing transcript…`);
+  const sources: TranscriptSources = {};
+  try {
+    sources.captions = await fetchYouTubeTranscript(videoId, { language });
+    console.log("  ✓ Found captions — download/transcription skipped.");
+  } catch (err) {
+    const reason =
+      err instanceof TranscriptNotFoundError
+        ? "no captions available"
+        : err instanceof Error
+          ? err.message
+          : String(err);
+    console.warn(`  ⚠ ${reason}`);
+
+    // 3. No captions — extract the transcript with Whisper.
+    console.log(`\n[3/${totalSteps}] Extracting audio with Whisper…`);
+    const audioPath = await downloadAudio(url);
+    console.log(`  • Saved to ${audioPath}`);
+    try {
+      console.log("  Decoding audio to PCM…");
+      const audio = await decodeAudioToPCM(audioPath);
+      console.log("  Transcribing with Whisper…");
+      sources.whisper = await transcribeWithWhisper(audio, { language });
+      if (sources.whisper && sources.whisper.trim()) {
+        console.log("  ✓ Transcription complete.");
+      } else {
+        console.warn("  ⚠ Whisper returned no speech.");
+      }
+    } finally {
+      await cleanupAudio(audioPath);
+      console.log("  • Cleaned up temporary audio.");
+    }
+  }
+
+  if (
+    !(sources.captions && sources.captions.trim()) &&
+    !(sources.whisper && sources.whisper.trim())
+  ) {
+    throw new Error(
+      "No transcript could be obtained (no captions and Whisper found no speech)."
+    );
+  }
+
+  let body: string;
+  if (format) {
+    // 4. Format with the LLM (OpenRouter via the OpenAI SDK).
+    console.log(`\n[4/${totalSteps}] Formatting transcript with the LLM…`);
+    try {
+      body = await formatTranscript(sources, metadata);
+      console.log("  ✓ Formatted.");
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.warn(`  ⚠ Skipping LLM formatting: ${message}`);
+      body = [sources.captions, sources.whisper].filter(Boolean).join("\n\n");
+    }
+  } else {
+    body = [sources.captions, sources.whisper].filter(Boolean).join("\n\n");
+  }
+
+  // Save the markdown doc.
+  const saveStep = format ? 5 : 4;
+  console.log(`\n[${saveStep}/${totalSteps}] Saving markdown document…`);
+  // Save under the channel name.
+  const dir = join("transcripts", slugify(metadata.channel));
+  const filePath = await writeMarkdownFile(metadata, videoId, body, dir);
+  const words = body.trim().split(/\s+/).filter(Boolean).length;
+  console.log(`  ✓ Saved ${resolve(filePath)}`);
+  console.log(`\nDone! ${body.length} characters, ${words} words.\n`);
+}
+
+/** Playlist: fetch every video, find their captions, download + transcribe
+ *  only the ones without captions (telling when it's skipped), and save the
+ *  markdown docs under transcripts/<channel>/<playlist>/ . When `format` is
+ *  set, each transcript is fed through the LLM formatter before saving. */
+async function handlePlaylist(
+  parsed: ParsedUrl,
+  language?: string,
+  format = false
+): Promise<void> {
+  console.log("\n[1/2] Listing playlist videos…");
+  let info: { id: string; title: string };
+  let videos: Array<{ id: string; url: string }>;
+  try {
+    ({ info, videos } = await fetchPlaylist(parsed.url));
+  } catch (err) {
+    console.error(
+      `  ✗ Could not list playlist videos: ${
+        err instanceof Error ? err.message : String(err)
+      }`
+    );
+    process.exitCode = 1;
+    return;
+  }
+  console.log(`  • ${videos.length} video(s) in playlist "${info.title}"`);
+
+  const playlistDir = slugify(info.title) || "playlist";
+  let channelDir = "";
+  let processed = 0;
+
+  for (const [index, video] of videos.entries()) {
+    console.log(`\n[${index + 1}/${videos.length}] ${video.id}`);
+
+    // Metadata (title + channel) for this video.
+    let metadata: { title: string; channel: string; url: string };
+    try {
+      metadata = await getVideoMetadata(video.url);
+    } catch (err) {
+      console.warn(
+        `  ⚠ Metadata unavailable for ${video.id}: ${
+          err instanceof Error ? err.message : String(err)
+        }`
+      );
+      metadata = { title: "YouTube Video", channel: "Unknown", url: video.url };
+    }
+    if (!channelDir) channelDir = slugify(metadata.channel);
+    const dir = join("transcripts", channelDir, playlistDir);
+
+    // 2. Captions first — when they exist, download/transcription is skipped.
     const sources: TranscriptSources = {};
     try {
-      sources.captions = await fetchYouTubeTranscript(videoId);
-      console.log("  ✓ Found captions.");
+      sources.captions = await fetchYouTubeTranscript(video.id, { language });
+      console.log("  ✓ Captions found — download/transcription skipped.");
     } catch (err) {
       const reason =
         err instanceof TranscriptNotFoundError
@@ -84,23 +238,31 @@ async function main(): Promise<void> {
             : String(err);
       console.warn(`  ⚠ ${reason}`);
 
-      // 3. No captions — extract the transcript with Whisper.
-      console.log("\n[3/5] Extracting audio with Whisper…");
-      const audioPath = await downloadAudio(url);
-      console.log(`  • Saved to ${audioPath}`);
+      // 3. No captions — download the audio and transcribe with Whisper.
+      console.log("  Extracting audio with Whisper…");
       try {
-        console.log("  Decoding audio to PCM…");
-        const audio = await decodeAudioToPCM(audioPath);
-        console.log("  Transcribing with Whisper…");
-        sources.whisper = await transcribeWithWhisper(audio);
-        if (sources.whisper && sources.whisper.trim()) {
-          console.log("  ✓ Transcription complete.");
-        } else {
-          console.warn("  ⚠ Whisper returned no speech.");
+        const audioPath = await downloadAudio(video.url);
+        try {
+          console.log("  Decoding audio to PCM…");
+          const audio = await decodeAudioToPCM(audioPath);
+          console.log("  Transcribing with Whisper…");
+          sources.whisper = await transcribeWithWhisper(audio, { language });
+          if (sources.whisper && sources.whisper.trim()) {
+            console.log("  ✓ Transcription complete.");
+          } else {
+            console.warn("  ⚠ Whisper returned no speech.");
+          }
+        } finally {
+          await cleanupAudio(audioPath);
+          console.log("  • Cleaned up temporary audio.");
         }
-      } finally {
-        await cleanupAudio(audioPath);
-        console.log("  • Cleaned up temporary audio.");
+      } catch (err2) {
+        console.warn(
+          `  ⚠ Whisper failed for ${video.id}: ${
+            err2 instanceof Error ? err2.message : String(err2)
+          }`
+        );
+        continue;
       }
     }
 
@@ -108,35 +270,44 @@ async function main(): Promise<void> {
       !(sources.captions && sources.captions.trim()) &&
       !(sources.whisper && sources.whisper.trim())
     ) {
-      throw new Error(
-        "No transcript could be obtained (no captions and Whisper found no speech)."
-      );
+      console.warn(`  ⚠ No transcript could be obtained for ${video.id}; skipping.`);
+      continue;
     }
 
-    // 4. Format with the LLM (OpenRouter via the OpenAI SDK).
-    console.log("\n[4/5] Formatting transcript with the LLM…");
     let body: string;
-    try {
-      body = await formatTranscript(sources, metadata);
-      console.log("  ✓ Formatted.");
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      console.warn(`  ⚠ Skipping LLM formatting: ${message}`);
+    if (format) {
+      // Format with the LLM (OpenRouter via the OpenAI SDK).
+      console.log("  Formatting transcript with the LLM…");
+      try {
+        body = await formatTranscript(sources, metadata);
+        console.log("  ✓ Formatted.");
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        console.warn(`  ⚠ Skipping LLM formatting: ${message}`);
+        body = [sources.captions, sources.whisper].filter(Boolean).join("\n\n");
+      }
+    } else {
       body = [sources.captions, sources.whisper].filter(Boolean).join("\n\n");
     }
 
-    // 5. Save the markdown doc.
-    console.log("\n[5/5] Saving markdown document…");
-    const filePath = await writeMarkdownFile(metadata, videoId, body);
-    const words = body.trim().split(/\s+/).filter(Boolean).length;
-    console.log(`  ✓ Saved ${resolve(filePath)}`);
-    console.log(`\nDone! ${body.length} characters, ${words} words.\n`);
-  } catch (err) {
-    console.error(`\n✗ ${err instanceof Error ? err.message : String(err)}`);
-    process.exitCode = 1;
-  } finally {
-    rl.close();
+    // Save under transcripts/<channel>/<playlist>/.
+    try {
+      const filePath = await writeMarkdownFile(metadata, video.id, body, dir);
+      const words = body.trim().split(/\s+/).filter(Boolean).length;
+      console.log(`  ✓ Saved ${resolve(filePath)}`);
+      processed++;
+    } catch (err) {
+      console.warn(
+        `  ⚠ Failed to save ${video.id}: ${
+          err instanceof Error ? err.message : String(err)
+        }`
+      );
+    }
   }
+
+  console.log(
+    `\nDone! ${processed}/${videos.length} video(s) saved under transcripts/${channelDir}/${playlistDir}/`
+  );
 }
 
 await main();
