@@ -7,7 +7,6 @@ import {
   Typography,
 } from "@mui/material"
 import { Transcript } from "../modules/storage"
-import { ActionButton } from "./ui/ActionButton"
 import { Markdown } from "./ui/Markdown"
 import { Surface } from "./ui/Surface"
 

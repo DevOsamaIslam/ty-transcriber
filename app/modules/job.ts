@@ -14,6 +14,7 @@ export function createJob(): string {
   const id = Math.random().toString(36).slice(2, 10);
   jobs.set(id, { step: "metadata", message: "Starting…" });
   setTimeout(() => jobs.delete(id), JOB_TTL_MS);
+  console.log(`[job] created ${id}`);
   return id;
 }
 
@@ -24,6 +25,7 @@ export function updateJob(
   const current = jobs.get(jobId);
   if (current) {
     jobs.set(jobId, { ...current, ...progress });
+    console.log(`[job] ${jobId} → ${progress.step}: ${progress.message}`);
   }
 }
 

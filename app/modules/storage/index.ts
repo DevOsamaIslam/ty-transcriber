@@ -135,6 +135,10 @@ export async function saveTranscript(data: {
   uploadDate?: string;
   videoDate?: string;
 }): Promise<void> {
+  const started = Date.now();
+  console.log(
+    `[storage] saveTranscript start videoId=${data.id} title="${data.title}" source=${data.source ?? "-"} language=${data.language ?? "-"} transcriptLen=${data.transcript.length}`
+  );
   const TranscriptModel = await getTranscriptModel();
   await TranscriptModel.findOneAndUpdate(
     { videoId: data.id },
@@ -156,6 +160,9 @@ export async function saveTranscript(data: {
     },
     { upsert: true, setDefaultsOnInsert: true }
   ).exec();
+  console.log(
+    `[storage] saveTranscript done videoId=${data.id} in ${Date.now() - started}ms`
+  );
 }
 
 export async function getTranscript(id: string): Promise<Transcript | null> {

@@ -47,7 +47,14 @@ async function processVideo(
   opts?: { playlistId?: string; playlistIndex?: number; language?: string }
 ): Promise<TranscriptResult> {
   const videoId = extractId(parseYouTubeUrl(url));
+  const started = Date.now();
+  console.log(
+    `[transcript] processVideo start url=${url} videoId=${videoId} language=${opts?.language ?? "default"}`
+  );
   const metadata = await fetchVideoMetadata(url);
+  console.log(
+    `[transcript] metadata fetched videoId=${videoId} title="${metadata.title}" channel="${metadata.channel}" in ${Date.now() - started}ms`
+  );
   const language = opts?.language;
 
   let transcript: string;
@@ -58,14 +65,26 @@ async function processVideo(
     transcript = await fetchYouTubeTranscript(videoId, { language });
     source = "captions";
     skipped = true;
+    console.log(
+      `[transcript] captions found for videoId=${videoId} — download/Whisper skipped`
+    );
   } catch (err: any) {
     if (!(err instanceof TranscriptNotFoundError)) {
       throw err;
     }
     source = "whisper";
+    console.log(
+      `[transcript] no captions for videoId=${videoId}, falling back to Whisper`
+    );
     transcript = await transcribeAudio(url, { language });
+    console.log(
+      `[transcript] Whisper transcription done for videoId=${videoId} (${transcript.length} chars)`
+    );
   }
 
+  console.log(
+    `[transcript] saving transcript videoId=${videoId} source=${source} skipped=${skipped}`
+  );
   await saveTranscript({
     id: videoId,
     title: metadata.title,
@@ -81,6 +100,9 @@ async function processVideo(
     uploadDate: metadata.uploadDate,
     videoDate: metadata.videoDate,
   });
+  console.log(
+    `[transcript] transcript saved videoId=${videoId} total=${Date.now() - started}ms`
+  );
 
   return {
     id: videoId,

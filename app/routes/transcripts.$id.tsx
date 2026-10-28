@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react"
+import { useEffect, useState } from "react"
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router"
 import {
   data,
@@ -15,14 +15,7 @@ import { createJob, updateJob, type JobProgress } from "../modules/job"
 import { TranscriptViewer } from "../components/TranscriptViewer"
 import { StepsBox } from "../components/ui/StepsBox"
 import { ActionButton } from "../components/ui/ActionButton"
-import {
-  Alert,
-  AlertTitle,
-  Box,
-  Container,
-  Stack,
-  Typography,
-} from "@mui/material"
+import { Alert, AlertTitle, Container, Stack, Typography } from "@mui/material"
 import { AutoAwesomeRounded } from "@mui/icons-material"
 
 export async function loader({ params }: LoaderFunctionArgs) {

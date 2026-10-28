@@ -19,7 +19,7 @@ Search here first before reading entire files.
 ### `app/modules/db/index.ts`
 - **`getMongoUri()`** — Returns `process.env.MONGODB_URI` or defaults to `mongodb://localhost:27017`.
 - **`getDbName()`** — Returns `process.env.MONGODB_DB_NAME` or defaults to `ty-transcriber`.
-- **`connectDb(uri?)`** — Lazy Mongoose connection (singleton promise). Safe to call repeatedly; returns the existing connection when ready. Used by: `storage` module.
+- **`connectDb(uri?)`** — Lazy Mongoose connection (singleton promise). Safe to call repeatedly; returns the existing connection when ready. Fails fast (8s `serverSelectionTimeoutMS`) and logs connection attempts/outcomes verbosely so a down database surfaces as an error instead of leaving a transcription job stuck on the "saving" step. Used by: `storage` module.
 - **`disconnectDb()`** — Closes the Mongoose connection and resets the cached promise. Used by: tests.
 
 ### `app/modules/storage/index.ts`
