@@ -55,6 +55,11 @@ export const theme = createTheme({
 // Width of the single history sidebar (sticky on desktop, slide-in drawer on mobile).
 const DRAWER_WIDTH = 260
 
+// Height of the fixed NavBar (MUI's default Toolbar minHeight, which the
+// fixed AppBar sizes to). Shell content starts below the app bar so the
+// sidebar and main area never sit underneath it.
+const APP_BAR_HEIGHT = 56
+
 // Root loader — supplies the sidebar history on every page.
 //
 // The history list is rendered by `Sidebar` in this shell, so every route
@@ -93,7 +98,7 @@ export default function Root() {
           <Box sx={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
             {/* Fixed app bar with the brand logo and mobile menu toggle. */}
             <NavBar onMenuClick={openMobileDrawer} />
-            <Box sx={{ display: "flex", flex: 1, mt: 4 }}>
+            <Box sx={{ display: "flex", flex: 1, mt: `${APP_BAR_HEIGHT}px` }}>
               {/* Desktop: the one sticky history sidebar, hidden below md.
                   No onClose — choosing an item only navigates, it never
                   opens a drawer. */}
@@ -105,9 +110,9 @@ export default function Root() {
                   width: DRAWER_WIDTH,
                   flexShrink: 0,
                   position: "sticky",
-                  top: 0,
+                  top: APP_BAR_HEIGHT,
                   alignSelf: "flex-start",
-                  height: "100vh",
+                  height: `calc(100vh - ${APP_BAR_HEIGHT}px)`,
                   overflowY: "auto",
                   borderRight: 1,
                 }}
