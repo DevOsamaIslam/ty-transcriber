@@ -1,10 +1,11 @@
-import React, { useState, useEffect, useRef } from "react";
-import { Form } from "react-router";
-import { Box } from "@mui/material";
-import { ActionButton } from "./ui/ActionButton";
-import { InputField } from "./ui/InputField";
-import { LanguageSelect } from "./ui/LanguageSelect";
-import { StepsBox } from "./ui/StepsBox";
+import React, { useState } from "react"
+import { Form } from "react-router"
+import { Box, Checkbox, FormControlLabel } from "@mui/material"
+import { ActionButton } from "./ui/ActionButton"
+import { InputField } from "./ui/InputField"
+import { LanguageSelect } from "./ui/LanguageSelect"
+import { StepsBox } from "./ui/StepsBox"
+import type { JobProgress } from "../modules/job"
 
 export type UrlFormProps = {
   /**
@@ -12,57 +13,63 @@ export type UrlFormProps = {
    * React Router's <Form method="post"> and POSTs `url`, `language` and
    * `format` to the route action.
    */
-  onSubmit?: (data: { url: string; language: string; format: boolean }) => void;
+  onSubmit?: (data: { url: string; language: string; format: boolean }) => void
   /** Shows a spinner and disables the button while the action runs. */
-  loading?: boolean;
+  loading?: boolean
   /** Error message returned from the route action. */
-  serverError?: string | null;
-};
+  serverError?: string | null
+  /** Real progress from the server (SSE). When set, shows the stepper below the form. */
+  progress?: JobProgress | null
+}
 
 const formLayout = {
   display: "flex",
   gap: 8,
   flexWrap: "wrap",
   alignItems: "flex-start",
-} as const;
+} as const
 
-const TRANSCRIBE_STEPS = [
+// Maps server job steps to stepper indices.
+const STEP_LABELS = [
   "Fetching video metadata",
   "Getting captions / transcribing",
   "Formatting transcript",
   "Saving transcript",
-];
+]
 
-export function UrlForm({ onSubmit, loading, serverError }: UrlFormProps) {
-  const [url, setUrl] = useState("");
-  const [language, setLanguage] = useState("");
-  const [format, setFormat] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const stepRef = useRef(0);
+function stepIndexFromProgress(step: JobProgress["step"]): number {
+  switch (step) {
+    case "metadata":
+      return 0
+    case "captions":
+      return 1
+    case "formatting":
+      return 2
+    case "saving":
+      return 3
+    case "done":
+    case "error":
+      return 3
+  }
+}
 
-  const displayError = error ?? serverError ?? null;
+export function UrlForm({ onSubmit, loading, serverError, progress }: UrlFormProps) {
+  const [url, setUrl] = useState("")
+  const [language, setLanguage] = useState("")
+  const [format, setFormat] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
-  // While the action is running, animate through the transcribe steps.
-  useEffect(() => {
-    if (!loading) {
-      stepRef.current = 0;
-      return;
-    }
-    const interval = setInterval(() => {
-      stepRef.current = (stepRef.current + 1) % TRANSCRIBE_STEPS.length;
-    }, 900);
-    return () => clearInterval(interval);
-  }, [loading]);
+  const displayError = error ?? serverError ?? null
 
   const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    setError(null);
+    e.preventDefault()
+    setError(null)
     if (!url.trim()) {
-      setError("Please enter a YouTube URL");
-      return;
+      setError("Please enter a YouTube URL")
+      return
     }
-    onSubmit?.({ url, language, format });
-  };
+    onSubmit?.({ url, language, format })
+  }
 
   const displayFields = (
     <>
@@ -90,41 +97,47 @@ export function UrlForm({ onSubmit, loading, serverError }: UrlFormProps) {
           gap: 1,
           minWidth: 160,
           order: 3,
-        }}
-      >
-        <input
-          id="format"
-          type="checkbox"
-          checked={format}
-          onChange={(e) => setFormat(e.target.checked)}
-          sx={{ p: 0, mt: 0.5 }}
+        }}>
+        <FormControlLabel
+          control={
+            <Checkbox
+              name="format"
+              checked={format}
+              onChange={(e) => setFormat(e.target.checked)}
+              size="small"
+              sx={{ p: 0 }}
+            />
+          }
+          label="Format"
+          labelPlacement="end"
+          sx={{ mt: 0.25, fontSize: "0.85rem", color: "text.secondary" }}
         />
-        <label htmlFor="format" sx={{ mt: 0.25, fontSize: "0.85rem" }}>
-          Format with LLM
-        </label>
       </Box>
       <ActionButton type="submit" loading={loading} fullWidth={!onSubmit}>
         Transcribe
       </ActionButton>
     </>
-  );
+  )
 
-  // While the server action runs, show an animated step-by-step box.
-  if (loading) {
-    return (
-      <Box sx={{ mb: 4, ...formLayout }}>
-        <StepsBox steps={TRANSCRIBE_STEPS} activeIndex={stepRef.current} />
-      </Box>
-    );
-  }
+  // Show the stepper below the form, driven by real server progress (SSE).
+  const stepper = progress ? (
+    <StepsBox
+      steps={STEP_LABELS}
+      activeIndex={stepIndexFromProgress(progress.step)}
+    />
+  ) : null
 
   if (onSubmit) {
     // Test/programmatic path: controlled form, no router required.
     return (
-      <Box component="form" onSubmit={handleSubmit} sx={{ mb: 4, ...formLayout }}>
+      <Box
+        component="form"
+        onSubmit={handleSubmit}
+        sx={{ mb: 4, ...formLayout }}>
         {displayFields}
+        {stepper}
       </Box>
-    );
+    )
   }
 
   // Production path: POSTs to the index route action (progressive enhancement).
@@ -133,6 +146,7 @@ export function UrlForm({ onSubmit, loading, serverError }: UrlFormProps) {
       <Form method="post" style={{ ...formLayout }}>
         {displayFields}
       </Form>
+      {stepper}
     </Box>
-  );
+  )
 }

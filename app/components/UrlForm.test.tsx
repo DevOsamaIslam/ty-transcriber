@@ -28,7 +28,7 @@ describe("UrlForm", () => {
     const urlInput = screen.getByLabelText(/youtube url/i);
     fireEvent.change(urlInput, { target: { value: "https://youtube.com/watch?v=abc123" } });
 
-    const checkbox = screen.getByLabelText(/format with llm/i);
+    const checkbox = screen.getByLabelText(/^format$/i);
     fireEvent.click(checkbox);
 
     const button = screen.getByRole("button", { name: /transcribe/i });

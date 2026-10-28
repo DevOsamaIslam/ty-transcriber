@@ -126,13 +126,28 @@ Search here first before reading entire files.
 - **`StepsBox`** — Animated step-by-step progress box inside a MUI `Surface`. Shows each step with a numbered circle (pending / active / complete) and a pulse animation on the active step, used while a transcription is in flight.
 
 ### `app/components/UrlForm.tsx`
-- **`UrlFormProps`** (type) — `{ onSubmit?: ({ url, language, format }: { url: string; language: string; format: boolean }) => void, loading?: boolean, serverError?: string | null }`
-- **`UrlForm`** — URL entry form with a transcript language `LanguageSelect` and a "Format with LLM" checkbox. With `onSubmit`: controlled form (test path), called with `{ url, language, format }`. Without: React Router `<Form method="post">` posting `url`, `language` and `format` to the route action. While the action runs, renders an animated `StepsBox` instead of the form fields. Validates non-empty input, shows `serverError`.
+- **`UrlFormProps`** (type) — `{ onSubmit?: ({ url, language, format }: { url: string; language: string; format: boolean }) => void, loading?: boolean, serverError?: string | null, progress?: JobProgress | null }`
+- **`UrlForm`** — URL entry form with a transcript language `LanguageSelect` and a "Format with LLM" checkbox. With `onSubmit`: controlled form (test path), called with `{ url, language, format }`. Without: React Router `<Form method="post">` posting `url`, `language` and `format` to the route action. While a job is in flight, renders an animated `StepsBox` below the form driven by real server progress (SSE). Validates non-empty input, shows `serverError`.
 
 ## Routes
 
 ### `app/routes.ts`
-- Flat route config using `index()` and `route()` from `@react-router/dev/routes`. Routes: `/`, `/transcripts/playlist/:playlistId`, `/transcripts/channel/:channel`, `/transcripts/:id`.
+- Flat route config using `index()` and `route()` from `@react-router/dev/routes`. Routes: `/`, `/api/job/:jobId`, `/transcripts/playlist/:playlistId`, `/transcripts/channel/:channel`, `/transcripts/:id`.
+
+### `app/modules/job.ts`
+- **`JobStep`** (type) — `"metadata" | "captions" | "formatting" | "saving" | "done" | "error"`.
+- **`JobProgress`** (interface) — `{ step, message, error?, transcriptId? }` — real-time progress of a background transcription job.
+- **`createJob()`** — Registers a new job in the in-memory store and returns its id.
+- **`updateJob(jobId, progress)`** — Updates a job's progress (called by the route action at each real step).
+- **`getJob(jobId)`** — Reads a job's current progress (polled by the SSE route).
+- **`deleteJob(jobId)`** — Removes a job from the store.
+
+### `app/routes/api.job.$jobId.tsx`
+- **`loader`** — SSE endpoint that streams `JobProgress` events for a given job id to the client via `text/event-stream`.
+
+### `app/routes/index.tsx`
+- **`action`** — For single videos: creates a job, runs transcription in the background (metadata → captions → optional formatting → saving), writes progress to the job store at each step, and returns `{ jobId }` immediately. Playlists remain synchronous. On formatting failure, the job step is set to `error` with the message.
+- **`Index`** — Opens an SSE connection to `/api/job/:jobId` when a job id appears in the action data, updates local `progress` from each event, and redirects to `/transcripts/:id` on `done`.
 
 ### `app/root.tsx`
 - **`theme`** — MUI theme with custom primary color and component defaults.
