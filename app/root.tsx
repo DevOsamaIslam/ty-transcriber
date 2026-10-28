@@ -43,6 +43,11 @@ export const theme = createTheme({
     },
     divider: "#E9E5E0", // border
   },
+  typography: {
+    // Noto Sans Arabic covers Arabic glyphs that Roboto lacks; falls back to
+    // the system sans-serif stack for everything else.
+    fontFamily: '"Noto Sans Arabic", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+  },
   components: {
     MuiButton: {
       defaultProps: {
@@ -89,6 +94,21 @@ export default function Root() {
             sending `Content-Type: text/html` without one), browsers fall back
             to windows-1252 and UTF-8 Arabic text renders as mojibake. */}
         <meta charSet="utf-8" />
+        {/* Noto Sans Arabic provides proper Arabic glyph rendering for transcripts. */}
+        <link
+          rel="preconnect"
+          href="https://fonts.googleapis.com"
+          crossOrigin=""
+        />
+        <link
+          rel="preconnect"
+          href="https://fonts.gstatic.com"
+          crossOrigin=""
+        />
+        <link
+          rel="stylesheet"
+          href="https://fonts.googleapis.com/css2?family=Noto+Sans+Arabic:wght@400;700&display=swap"
+        />
         <Meta />
         <Links />
       </head>

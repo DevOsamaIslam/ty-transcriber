@@ -37,9 +37,10 @@ Requirements:
 - Divide the transcript into logical sections using ## headings, based on topic changes.
 - Split the raw words into natural paragraphs.
 - Keep the speaker's meaning and information intact. Do not add, remove, or invent any content.
+- Sometimes the transcript is written in a slang language (e.g. Arabic) it should be converted into the classical text.
 - Remove purely mechanical noise: timestamps, "(music)", "[Music]", repeated false starts, and other transcription-software artifacts.
-- Fix obvious spacing/casing artifacts, but do not rewrite sentences.
-- Output ONLY the formatted Markdown body. Do not add a title heading, metadata block, summary, or any commentary outside the content.`;
+- For YouTube transcripts it sometimes adds ">>>" at the beginning of someone's speech, separate different speeches.
+- Fix obvious spacing/casing artifacts.`;
 
 /** Renders the transcript source(s) as labeled blocks for the LLM prompt. */
 function listSources(sources: TranscriptSources): string[] {
