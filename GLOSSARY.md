@@ -27,7 +27,8 @@ Search here first before reading entire files.
 - **`TranscriptDoc`** (Typegoose class) — Mongo document for stored transcripts. Stores the lookup id as **`videoId`** (unique, indexed — Mongoose reserves the `id` virtual, so `id` is mapped from `videoId` in the DTO). Also stores `channel`, `channelId`, `playlistId`, `playlistIndex`, `source`, `language`, `uploadDate`, `videoDate` and `originalTitle`. `createdAt`/`updatedAt` managed by Mongoose timestamps. Requires explicit `type: () => …` per `@prop` because esbuild does not emit decorator metadata.
 - **`saveTranscript(data)`** — Upserts the transcript into MongoDB by `videoId` via `findOneAndUpdate` (re-saving overwrites, preserving original `createdAt`); optionally stores `channel`, `channelId`, `playlistId`, `playlistIndex`, `source`, `language`, `uploadDate`, `videoDate` and `originalTitle`.
 - **`getTranscript(id)`** — Retrieves a transcript by ID. Returns `null` if not found.
-- **`listTranscripts(filter?)`** — Returns all transcripts sorted by `createdAt` descending; optional `{ channel?, playlistId? }` filter for the channel/playlist views.
+- **`TranscriptListFilter`** (interface) — `{ channel?, playlistId?, query?, source?, language? }`: `channel`/`playlistId` restrict to one channel/playlist; `query` does a case-insensitive match against title, channel, original title and source URL; `source` is `"captions" | "whisper"`; `language` is an ISO 639-1 code.
+- **`listTranscripts(filter?)`** — Returns all transcripts sorted by `createdAt` descending; optional `TranscriptListFilter` (`channel`, `playlistId`, `query`, `source`, `language`). Used by: `routes/index`, `routes/transcriptsChannel`, `routes/transcriptsPlaylist`, `root`.
 - **`deleteTranscript(id)`** — Deletes a transcript document by ID (no-op if missing).
 
 ### `app/modules/youtube/index.ts`
@@ -142,6 +143,9 @@ Search here first before reading entire files.
 - **`SidebarProps`** (type) — `{ transcripts: Transcript[], onClose? }` — `transcripts` are the stored transcripts newest first; `onClose` is called when a history item is chosen — passed only inside the mobile drawer (closes it); the desktop sticky sidebar omits it so clicks just navigate.
 - **`Sidebar`** — History panel: renders each saved transcript as a link to `/transcripts/:id` with its date and source ("Captions" / "Whisper" / "Unknown"), and an empty state when none exist. The app's single sidebar: sticky on desktop, inside a slide-in drawer on mobile.
 
+### `app/components/TranscriptFilter.tsx`
+- **`TranscriptFilter()`** — Search/filter bar for the stored transcripts on the home page. Text search (`q`) matches title, channel, original title and source URL; dropdowns filter by source (`captions`/`whisper`) and language, plus a channel input. Values live in URL search params, so changing a field re-runs the route loader; includes a clear-filters button and an active-filter chip.
+
 ## Routes
 
 ### `app/routes.ts`
@@ -159,9 +163,9 @@ Search here first before reading entire files.
 - **`loader`** — SSE endpoint that streams `JobProgress` events for a given job id to the client via `text/event-stream`.
 
 ### `app/routes/index.tsx`
-- **`loader`** — Calls `listTranscripts()`, returns plain object `{ transcripts }` (v8: no `json()` helper); feeds the home page's `TranscriptList` (the root loader supplies the same list to the shell's sidebar).
+- **`loader`** — Reads `q`, `source`, `language` and `channel` search params into a `TranscriptListFilter`, calls `listTranscripts(filter)`, returns `{ transcripts, filter }` (v8: no `json()` helper).
 - **`action`** — Reads `formData.get("url")`, `formData.get("language")` and `formData.get("format")` (checkbox, `"on"` when checked). Playlists call `getTranscriptsForPlaylist(url, { language })` then redirect to `/transcripts/playlist/:playlistId`. Single videos: creates a job, runs transcription in the background (metadata → captions → optional LLM formatting → saving), writes progress to the job store at each step, and returns `{ jobId }` immediately. On formatting failure the job step is set to `error` with the message; invalid/failed input returns `data({ error }, { status })` (400/422).
-- **`Index`** — Home page. Uses `useLoaderData`, `useActionData`, `useNavigation` (submitting state) to render `UrlForm` and `TranscriptList`; opens an SSE connection to `/api/job/:jobId` when a job id appears in the action data, updates local `progress` from each event, and redirects to `/transcripts/:id` on `done`.
+- **`Index`** — Home page. Uses `useLoaderData`, `useActionData`, `useNavigation` (submitting state) to render `UrlForm`, the `TranscriptFilter` bar and the filtered `TranscriptList` with a result count; opens an SSE connection to `/api/job/:jobId` when a job id appears in the action data, updates local `progress` from each event, and redirects to `/transcripts/:id` on `done`.
 
 ### `app/routes/transcripts.$id.tsx`
 - **`loader`** — Calls `getTranscript(id)`, redirects to home if not found, returns plain object `{ transcript }`.

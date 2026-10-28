@@ -235,5 +235,142 @@ describe("storage module (mongo)", () => {
       const result = await listTranscripts();
       expect(result).toHaveLength(1);
     });
+
+    it("listTranscripts filters by query (case-insensitive title match)", async () => {
+      await saveTranscript({
+        id: "a",
+        title: "Arabic Lesson 1",
+        transcript: "content a",
+        sourceUrl: "url-a",
+      });
+      await saveTranscript({
+        id: "b",
+        title: "English Lesson",
+        transcript: "content b",
+        sourceUrl: "url-b",
+      });
+
+      const result = await listTranscripts({ query: "ARABIC" });
+      expect(result).toHaveLength(1);
+      expect(result[0].id).toBe("a");
+    });
+
+    it("listTranscripts filters by query against channel", async () => {
+      await saveTranscript({
+        id: "a",
+        title: "A",
+        transcript: "content a",
+        sourceUrl: "url-a",
+        channel: "Channel One",
+      });
+      await saveTranscript({
+        id: "b",
+        title: "B",
+        transcript: "content b",
+        sourceUrl: "url-b",
+        channel: "Channel Two",
+      });
+
+      const result = await listTranscripts({ query: "Channel" });
+      expect(result).toHaveLength(2);
+
+      const resultTwo = await listTranscripts({ query: "Two" });
+      expect(resultTwo).toHaveLength(1);
+      expect(resultTwo[0].id).toBe("b");
+    });
+
+    it("listTranscripts filters by query against original title and source url", async () => {
+      await saveTranscript({
+        id: "a",
+        title: "A",
+        transcript: "content a",
+        sourceUrl: "https://youtube.com/watch?v=abc123",
+        originalTitle: "الأصل العربي",
+      });
+      await saveTranscript({
+        id: "b",
+        title: "B",
+        transcript: "content b",
+        sourceUrl: "https://youtube.com/watch?v=def456",
+      });
+
+      const byOriginal = await listTranscripts({ query: "العربي" });
+      expect(byOriginal).toHaveLength(1);
+      expect(byOriginal[0].id).toBe("a");
+
+      const byUrl = await listTranscripts({ query: "def456" });
+      expect(byUrl).toHaveLength(1);
+      expect(byUrl[0].id).toBe("b");
+    });
+
+    it("listTranscripts filters by source", async () => {
+      await saveTranscript({
+        id: "a",
+        title: "A",
+        transcript: "content a",
+        sourceUrl: "url-a",
+        source: "captions",
+      });
+      await saveTranscript({
+        id: "b",
+        title: "B",
+        transcript: "content b",
+        sourceUrl: "url-b",
+        source: "whisper",
+      });
+
+      const result = await listTranscripts({ source: "whisper" });
+      expect(result).toHaveLength(1);
+      expect(result[0].id).toBe("b");
+    });
+
+    it("listTranscripts filters by language", async () => {
+      await saveTranscript({
+        id: "a",
+        title: "A",
+        transcript: "content a",
+        sourceUrl: "url-a",
+        language: "en",
+      });
+      await saveTranscript({
+        id: "b",
+        title: "B",
+        transcript: "content b",
+        sourceUrl: "url-b",
+        language: "ar",
+      });
+
+      const result = await listTranscripts({ language: "ar" });
+      expect(result).toHaveLength(1);
+      expect(result[0].id).toBe("b");
+    });
+
+    it("listTranscripts combines query and source filters", async () => {
+      await saveTranscript({
+        id: "a",
+        title: "Arabic Lesson",
+        transcript: "content a",
+        sourceUrl: "url-a",
+        source: "captions",
+      });
+      await saveTranscript({
+        id: "b",
+        title: "Arabic Lesson 2",
+        transcript: "content b",
+        sourceUrl: "url-b",
+        source: "whisper",
+      });
+      await saveTranscript({
+        id: "c",
+        title: "English Lesson",
+        transcript: "content c",
+        sourceUrl: "url-c",
+        source: "whisper",
+      });
+
+      const result = await listTranscripts({ query: "arabic", source: "whisper" });
+      expect(result).toHaveLength(1);
+      expect(result[0].id).toBe("b");
+    });
   });
 });

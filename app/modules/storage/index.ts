@@ -164,14 +164,39 @@ export async function getTranscript(id: string): Promise<Transcript | null> {
   return doc ? toTranscript(doc) : null;
 }
 
-export async function listTranscripts(filter?: {
+export interface TranscriptListFilter {
+  /** Restrict to a single channel. */
   channel?: string;
+  /** Restrict to a single playlist. */
   playlistId?: string;
-}): Promise<Transcript[]> {
+  /** Free-text match (case-insensitive) against title, channel, original title and source URL. */
+  query?: string;
+  /** Restrict to a transcript source ("captions" | "whisper"). */
+  source?: "captions" | "whisper";
+  /** Restrict to a transcript language (ISO 639-1). */
+  language?: string;
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+export async function listTranscripts(filter?: TranscriptListFilter): Promise<Transcript[]> {
   const TranscriptModel = await getTranscriptModel();
-  const query: Record<string, string> = {};
+  const query: Record<string, unknown> = {};
   if (filter?.channel) query.channel = filter.channel;
   if (filter?.playlistId) query.playlistId = filter.playlistId;
+  if (filter?.source) query.source = filter.source;
+  if (filter?.language) query.language = filter.language;
+  if (filter?.query) {
+    const regex = new RegExp(escapeRegExp(filter.query), "i");
+    query.$or = [
+      { title: regex },
+      { channel: regex },
+      { originalTitle: regex },
+      { sourceUrl: regex },
+    ];
+  }
   const docs = await TranscriptModel.find(query).sort({ createdAt: -1 }).exec();
   return docs.map(toTranscript);
 }

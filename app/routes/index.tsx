@@ -16,13 +16,26 @@ import { formatTranscript } from "../modules/openrouter";
 import type { TranscriptSources } from "../modules/openrouter";
 import { createJob, updateJob, type JobProgress } from "../modules/job";
 import { TranscriptList } from "../components/TranscriptList";
+import { TranscriptFilter } from "../components/TranscriptFilter";
 import { UrlForm } from "../components/UrlForm";
+import type { TranscriptListFilter } from "../modules/storage";
 import { Box, Container, Typography } from "@mui/material";
 
-export async function loader(_args: LoaderFunctionArgs) {
-  const transcripts = await listTranscripts();
+export async function loader({ request }: LoaderFunctionArgs) {
+  const url = new URL(request.url);
+  const filter: TranscriptListFilter = {};
+  const query = url.searchParams.get("q");
+  if (query) filter.query = query;
+  const source = url.searchParams.get("source");
+  if (source === "captions" || source === "whisper") filter.source = source;
+  const language = url.searchParams.get("language");
+  if (language) filter.language = language;
+  const channel = url.searchParams.get("channel");
+  if (channel) filter.channel = channel;
+
+  const transcripts = await listTranscripts(filter);
   // v8: loaders return plain objects — auto-serialized (no `json()` helper)
-  return { transcripts };
+  return { transcripts, filter };
 }
 
 export async function action({ request }: ActionFunctionArgs) {
@@ -106,7 +119,7 @@ export async function action({ request }: ActionFunctionArgs) {
 }
 
 export default function Index() {
-  const { transcripts } = useLoaderData<typeof loader>();
+  const { transcripts, filter } = useLoaderData<typeof loader>();
   const actionData = useActionData<typeof action>() as
     | { jobId?: string; error?: string }
     | undefined;
@@ -189,7 +202,16 @@ export default function Index() {
         serverError={serverError}
         progress={progress}
       />
+      <TranscriptFilter />
       <Box sx={{ mt: 6 }}>
+        <Typography
+          variant="body2"
+          color="text.secondary"
+          sx={{ mb: 2 }}
+        >
+          {transcripts.length} transcript{transcripts.length !== 1 ? "s" : ""} found{" "}
+          {filter.query && `matching "${filter.query}"`}
+        </Typography>
         <TranscriptList transcripts={transcripts} />
       </Box>
     </Container>
