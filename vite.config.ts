@@ -22,6 +22,38 @@ export default defineConfig(({ mode }) => {
     ssr: {
       noExternal: ["@mui/*", "@emotion/*"],
     },
+    // Pre-bundle the heavy MUI/Emotion chain so the dev server doesn't
+    // re-process hundreds of modules on every file change. This is the main
+    // reason hot reloading and page reloads are slow.
+    optimizeDeps: {
+      include: [
+        "@mui/material",
+        "@mui/icons-material",
+        "@mui/system",
+        "@mui/utils",
+        "@emotion/react",
+        "@emotion/styled",
+        "@emotion/is-prop-valid",
+      ],
+    },
+    server: {
+      hmr: {
+        protocol: "ws",
+        host: "localhost",
+      },
+      // Stop the file watcher from crawling large, irrelevant directories so
+      // it doesn't choke on them or trigger spurious rebuilds on every change.
+      watch: {
+        ignored: [
+          "**/node_modules/**",
+          "**/.git/**",
+          "**/dist/**",
+          "**/build/**",
+          "**/.react-router/**",
+          "**/transcripts/**",
+        ],
+      },
+    },
     test: {
       environment: "jsdom",
       globals: true,

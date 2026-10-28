@@ -1,6 +1,6 @@
 import React, { useState } from "react"
 import { Form } from "react-router"
-import { Box, Checkbox, FormControlLabel } from "@mui/material"
+import { Box, Checkbox, FormControlLabel, Stack } from "@mui/material"
 import { ActionButton } from "./ui/ActionButton"
 import { InputField } from "./ui/InputField"
 import { LanguageSelect } from "./ui/LanguageSelect"
@@ -53,7 +53,12 @@ function stepIndexFromProgress(step: JobProgress["step"]): number {
   }
 }
 
-export function UrlForm({ onSubmit, loading, serverError, progress }: UrlFormProps) {
+export function UrlForm({
+  onSubmit,
+  loading,
+  serverError,
+  progress,
+}: UrlFormProps) {
   const [url, setUrl] = useState("")
   const [language, setLanguage] = useState("")
   const [format, setFormat] = useState(false)
@@ -72,7 +77,7 @@ export function UrlForm({ onSubmit, loading, serverError, progress }: UrlFormPro
   }
 
   const displayFields = (
-    <>
+    <Box sx={{ width: "100%" }}>
       <InputField
         name="url"
         label="YouTube URL"
@@ -83,21 +88,15 @@ export function UrlForm({ onSubmit, loading, serverError, progress }: UrlFormPro
         helperText={displayError}
         sx={{ flex: 1, minWidth: 240 }}
       />
-      <LanguageSelect
-        name="language"
-        value={language}
-        onChange={(language) => setLanguage(language)}
-        helperText="Defaults to the video's language when left empty"
-        sx={{ minWidth: 160 }}
-      />
-      <Box
-        sx={{
-          display: "flex",
-          alignItems: "center",
-          gap: 1,
-          minWidth: 160,
-          order: 3,
-        }}>
+      <Stack direction="row" spacing={2}>
+        <LanguageSelect
+          name="language"
+          value={language}
+          onChange={(language) => setLanguage(language)}
+          helperText="Defaults to the video's language when left empty"
+          sx={{ minWidth: 160 }}
+        />
+
         <FormControlLabel
           control={
             <Checkbox
@@ -105,18 +104,15 @@ export function UrlForm({ onSubmit, loading, serverError, progress }: UrlFormPro
               checked={format}
               onChange={(e) => setFormat(e.target.checked)}
               size="small"
-              sx={{ p: 0 }}
             />
           }
           label="Format"
-          labelPlacement="end"
-          sx={{ mt: 0.25, fontSize: "0.85rem", color: "text.secondary" }}
         />
-      </Box>
+      </Stack>
       <ActionButton type="submit" loading={loading} fullWidth={!onSubmit}>
         Transcribe
       </ActionButton>
-    </>
+    </Box>
   )
 
   // Show the stepper below the form, driven by real server progress (SSE).
