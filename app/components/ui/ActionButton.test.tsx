@@ -18,7 +18,7 @@ describe("ActionButton", () => {
   it("applies the danger variant", () => {
     render(<ActionButton variant="danger">Delete</ActionButton>);
     const button = screen.getByRole("button", { name: /delete/i });
-    expect(button).toHaveClass("MuiButton-containedSecondary");
+    expect(button).toHaveClass("MuiButton-colorSecondary");
   });
 
   it("calls onClick when clicked", () => {

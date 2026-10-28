@@ -9,12 +9,7 @@ export type EmptyStateProps = {
 
 export function EmptyState({ heading, message }: EmptyStateProps) {
   return (
-    <Box
-      component="div"
-      textAlign="center"
-      py={4}
-      sx={{ color: "text.secondary" }}
-    >
+    <Box component="div" py={4} sx={{ textAlign: "center", color: "text.secondary" }}>
       <Typography variant="h6">{heading}</Typography>
       <Typography variant="body2">{message}</Typography>
     </Box>

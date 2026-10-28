@@ -1,4 +1,3 @@
-import React from "react"
 import {
   Divider,
   Grid,
@@ -69,8 +68,7 @@ export function TranscriptViewer({ transcript }: TranscriptViewerProps) {
                   wordBreak: "break-all",
                   textDecoration: "underline",
                 }}
-                dir="auto"
-              >
+                dir="auto">
                 {sourceUrl}
               </Link>
             ),
@@ -78,12 +76,14 @@ export function TranscriptViewer({ transcript }: TranscriptViewerProps) {
           channel && {
             primary: "Channel",
             secondary: channel,
-            secondaryTypographyProps: { dir: "auto" },
+            slotProps: { secondary: { dir: "auto" } },
           },
           {
             primary: "Source",
             secondary:
-              source === "whisper" ? "Whisper transcription" : "YouTube captions",
+              source === "whisper"
+                ? "Whisper transcription"
+                : "YouTube captions",
           },
           playlistIndex != null && {
             primary: "Playlist position",
@@ -98,43 +98,40 @@ export function TranscriptViewer({ transcript }: TranscriptViewerProps) {
             primary: "Video date",
             secondary: formatDate(videoDate),
           },
-          originalTitle && originalTitle !== title && {
-            primary: "Original title",
-            secondary: originalTitle,
-            secondaryTypographyProps: { dir: "auto" },
-          },
+          originalTitle &&
+            originalTitle !== title && {
+              primary: "Original title",
+              secondary: originalTitle,
+              slotProps: { secondary: { dir: "auto" } },
+            },
           { primary: "Saved", secondary: formatDate(createdAt) },
           {
             primary: "ID",
             secondary: id,
-            secondaryTypographyProps: {
-              sx: { fontFamily: "monospace", fontSize: "0.85rem" },
+            slotProps: {
+              secondary: {
+                sx: { fontFamily: "monospace", fontSize: "0.85rem" },
+              },
             },
           },
-        ]
-          .filter(Boolean)
-          .map((row, i) => (
-            <Grid key={i} item xs={12} md={6}>
+        ].map((row, i) => {
+          if (!row || typeof row !== "object") return null
+          return (
+            <Grid key={i} size={{ xs: 12, md: 6 }}>
               <ListItem sx={{ pb: 1 }}>
                 <ListItemText
                   primary={row.primary}
                   secondary={row.secondary}
-                  secondaryTypographyProps={row.secondaryTypographyProps}
+                  slotProps={row.slotProps}
                 />
               </ListItem>
             </Grid>
-          ))}
+          )
+        })}
       </Grid>
-      <Divider />
+      <Divider sx={{ mb: 2 }} />
       {/* The transcript body is Markdown, not raw text. */}
       <Markdown>{body}</Markdown>
-
-      <ActionButton
-        size="small"
-        variant="outline"
-        onClick={() => void navigator.clipboard.writeText(body)}>
-        Copy to clipboard
-      </ActionButton>
     </Surface>
   )
 }

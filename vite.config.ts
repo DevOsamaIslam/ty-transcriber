@@ -7,7 +7,7 @@ export default defineConfig(({ mode }) => {
 
   return {
     plugins,
-    // @mui/icons-material v6's ESM build imports '@mui/material/utils' as a
+    // @mui/icons-material v9's ESM build imports '@mui/material/utils' as a
     // directory import, which Node's native ESM resolver rejects outright
     // (ERR_UNSUPPORTED_DIR_IMPORT) because @mui/material publishes no exports
     // map for that subpath. When the SSR module runner externalizes these

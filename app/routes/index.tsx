@@ -43,7 +43,8 @@ export async function action({ request }: ActionFunctionArgs) {
   const url = formData.get("url");
   const language = formData.get("language");
   const format = formData.get("format");
-  const languageStr = typeof language === "string" ? language : undefined;
+  const languageStr =
+    typeof language === "string" && language.trim() ? language : undefined;
   const shouldFormat = format === "on";
 
   if (typeof url !== "string" || !url.trim()) {

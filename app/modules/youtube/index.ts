@@ -32,25 +32,59 @@ const UNAVAILABLE_ERRORS = [
 export interface FetchYouTubeTranscriptOptions {
   /**
    * ISO 639-1 language code (e.g. "en", "es", "fr") for the captions.
-   * When omitted, the video's default caption language is used.
+   * When omitted, English is tried first as a sensible "auto-detect"
+   * default; if English captions aren't available, the video's default
+   * caption language is used (the library's first caption track).
    */
   language?: string;
+}
+
+/** Fetches segments and joins them into a single transcript string. */
+async function fetchAndJoin(
+  videoId: string,
+  config: { lang: string } | undefined
+): Promise<string> {
+  const segments = await fetchTranscript(videoId, config);
+  if (!segments || segments.length === 0) {
+    throw new TranscriptNotFoundError(videoId);
+  }
+  return segments.map((s) => s.text).join(" ");
 }
 
 export async function fetchYouTubeTranscript(
   videoId: string,
   opts?: FetchYouTubeTranscriptOptions
 ): Promise<string> {
+  // When no language is specified, try English first as a sensible
+  // "auto-detect" default. The library otherwise picks the first caption
+  // track (captionTracks[0]), which may be in a different language than
+  // the video (e.g. Arabic auto-captions listed before English captions).
+  const triedEnglishDefault = !opts?.language;
+  const config = triedEnglishDefault ? { lang: "en" } : { lang: opts.language };
+
   try {
-    const config = opts?.language ? { lang: opts.language } : undefined;
-    const segments = await fetchTranscript(videoId, config);
-    if (!segments || segments.length === 0) {
-      throw new TranscriptNotFoundError(videoId);
-    }
-    return segments.map((s) => s.text).join(" ");
+    return await fetchAndJoin(videoId, config);
   } catch (err: any) {
     if (err instanceof TranscriptNotFoundError) {
       throw err;
+    }
+    // English was tried as an "auto-detect" default but isn't available;
+    // fall back to no language hint so the library picks YouTube's default track.
+    if (
+      triedEnglishDefault &&
+      err instanceof YoutubeTranscriptNotAvailableLanguageError
+    ) {
+      try {
+        return await fetchAndJoin(videoId, undefined);
+      } catch (fallbackErr: any) {
+        if (fallbackErr instanceof TranscriptNotFoundError) {
+          throw fallbackErr;
+        }
+        if (UNAVAILABLE_ERRORS.some((cls) => fallbackErr instanceof cls)) {
+          throw new TranscriptNotFoundError(videoId);
+        }
+        throw fallbackErr;
+      }
     }
     if (UNAVAILABLE_ERRORS.some((cls) => err instanceof cls)) {
       throw new TranscriptNotFoundError(videoId);

@@ -15,7 +15,14 @@ import { createJob, updateJob, type JobProgress } from "../modules/job"
 import { TranscriptViewer } from "../components/TranscriptViewer"
 import { StepsBox } from "../components/ui/StepsBox"
 import { ActionButton } from "../components/ui/ActionButton"
-import { Alert, AlertTitle, Box, Container, Typography } from "@mui/material"
+import {
+  Alert,
+  AlertTitle,
+  Box,
+  Container,
+  Stack,
+  Typography,
+} from "@mui/material"
 import { AutoAwesomeRounded } from "@mui/icons-material"
 
 export async function loader({ params }: LoaderFunctionArgs) {
@@ -200,19 +207,27 @@ export default function TranscriptRoute() {
           heading="Re-formatting transcript…"
         />
       )}
-      <TranscriptViewer transcript={transcript} />
-      <Box sx={{ mt: 3 }}>
+      <Stack direction={"row"} spacing={2} sx={{ mt: 3, mb: 2 }}>
+        <ActionButton
+          size="small"
+          variant="outline"
+          onClick={() =>
+            void navigator.clipboard.writeText(transcript.transcript)
+          }>
+          Copy to clipboard
+        </ActionButton>
         <Form method="post">
           <ActionButton
             type="submit"
             size="small"
             variant="outline"
             startIcon={<AutoAwesomeRounded />}
-            loading={progress != null}>
-            Re-format with LLM
+            disabled={progress != null}>
+            Re-format
           </ActionButton>
         </Form>
-      </Box>
+      </Stack>
+      <TranscriptViewer transcript={transcript} />
     </Container>
   )
 }

@@ -40,7 +40,8 @@ Requirements:
 - Sometimes the transcript is written in a slang language (e.g. Arabic) it should be converted into the classical text.
 - Remove purely mechanical noise: timestamps, "(music)", "[Music]", repeated false starts, and other transcription-software artifacts.
 - For YouTube transcripts it sometimes adds ">>>" at the beginning of someone's speech, separate different speeches.
-- Fix obvious spacing/casing artifacts.`;
+- Fix obvious spacing/casing artifacts.
+Do not add title, it's already added`;
 
 /** Renders the transcript source(s) as labeled blocks for the LLM prompt. */
 function listSources(sources: TranscriptSources): string[] {

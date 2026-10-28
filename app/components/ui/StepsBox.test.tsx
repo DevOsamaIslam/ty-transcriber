@@ -25,4 +25,22 @@ describe("StepsBox", () => {
     render(<StepsBox steps={STEPS} />);
     expect(screen.getByText("Fetching metadata")).toBeInTheDocument();
   });
+
+  it("shows a spinner around the active step's number instead of replacing it", () => {
+    render(<StepsBox steps={STEPS} activeIndex={1} />);
+    expect(screen.getByTestId("step-spinner")).toBeInTheDocument();
+    // The step number stays visible; the spinner encircles it.
+    expect(screen.getByText("2")).toBeInTheDocument();
+  });
+
+  it("only spins the active step, not completed or pending steps", () => {
+    render(<StepsBox steps={STEPS} activeIndex={1} />);
+    expect(screen.getAllByTestId("step-spinner")).toHaveLength(1);
+  });
+
+  it("keeps a pending step's number without a spinner", () => {
+    render(<StepsBox steps={STEPS} activeIndex={0} />);
+    expect(screen.getByText("2")).toBeInTheDocument();
+    expect(screen.getAllByTestId("step-spinner")).toHaveLength(1);
+  });
 });

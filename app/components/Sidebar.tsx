@@ -50,7 +50,7 @@ export function Sidebar({ transcripts, onClose }: SidebarProps) {
       </Toolbar>
       <Divider />
       {transcripts.length === 0 ? (
-        <Box py={2} textAlign="center" sx={{ color: "text.secondary" }}>
+        <Box py={2} sx={{ textAlign: "center", color: "text.secondary" }}>
           <Typography variant="body2">No transcripts yet</Typography>
           <Typography variant="caption" sx={{ mt: 1 }}>
             Transcribe a YouTube video to start building your history.
@@ -74,13 +74,11 @@ export function Sidebar({ transcripts, onClose }: SidebarProps) {
                 >
                   <ListItemText
                     primary={t.title}
-                    primaryTypographyProps={{
-                      variant: "body1",
-                      fontWeight: 600,
-                      noWrap: true,
+                    slotProps={{
+                      primary: { variant: "body1", fontWeight: 600, noWrap: true },
+                      secondary: { variant: "caption" },
                     }}
                     secondary={`${date} · ${sourceLabel(t.source)}`}
-                    secondaryTypographyProps={{ variant: "caption" }}
                   />
                 </ListItemButton>
               </ListItem>

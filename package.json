@@ -1,7 +1,7 @@
 {
   "name": "ty-transcriber",
   "private": true,
-  "version": "0.13.0",
+  "version": "0.13.4",
   "type": "module",
   "scripts": {
     "dev": "react-router dev",
@@ -14,8 +14,8 @@
   "dependencies": {
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.0",
-    "@mui/icons-material": "^6.4.0",
-    "@mui/material": "^6.4.0",
+    "@mui/icons-material": "^9.5.0",
+    "@mui/material": "^9.5.0",
     "@react-router/node": "^8.5.0",
     "@react-router/serve": "^8.5.0",
     "@typegoose/typegoose": "^13.5.0",

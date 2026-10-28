@@ -70,8 +70,22 @@ export function StepsBox({ steps, activeIndex, heading = "Transcribing…" }: St
                     ? "0 0 0 4px rgba(255, 184, 28, 0.25)"
                     : undefined,
                   animation: isActive ? "pulse 1.5s infinite" : undefined,
+                  position: "relative",
                 }}
               >
+                {isActive && (
+                  <CircularProgress
+                    size={20}
+                    strokeWidth={3}
+                    sx={{
+                      position: "absolute",
+                      top: 0,
+                      left: 0,
+                      color: "primary.main",
+                    }}
+                    data-testid="step-spinner"
+                  />
+                )}
                 {isComplete ? "✓" : index + 1}
               </Box>
               <Typography
@@ -85,9 +99,6 @@ export function StepsBox({ steps, activeIndex, heading = "Transcribing…" }: St
               >
                 {label}
               </Typography>
-              {isActive && (
-                <CircularProgress size={16} sx={{ color: "primary.main", ml: 0.5 }} />
-              )}
               {index < lastIndex && (
                 <Box sx={{ flexGrow: 1 }} />
               )}

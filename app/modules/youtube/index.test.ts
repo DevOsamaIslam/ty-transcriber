@@ -14,7 +14,10 @@ vi.mock("../../utils/shell", () => ({
 
 import { fetchYouTubeTranscript, getVideoMetadata, fetchVideoMetadata, TranscriptNotFoundError } from "./index";
 import * as youtubeTranscript from "youtube-transcript";
-import { YoutubeTranscriptNotAvailableError } from "youtube-transcript";
+import {
+  YoutubeTranscriptNotAvailableError,
+  YoutubeTranscriptNotAvailableLanguageError,
+} from "youtube-transcript";
 import { runCommandWithOutput } from "../../utils/shell";
 
 const mockFetchTranscript = youtubeTranscript.fetchTranscript as unknown as ReturnType<typeof vi.fn>;
@@ -39,7 +42,40 @@ describe("fetchYouTubeTranscript", () => {
 
     const result = await fetchYouTubeTranscript("dQw4w9WgXcQ");
     expect(result).toBe("Hello world This is a test");
-    expect(mockFetchTranscript).toHaveBeenCalledWith("dQw4w9WgXcQ", undefined);
+    expect(mockFetchTranscript).toHaveBeenCalledWith("dQw4w9WgXcQ", {
+      lang: "en",
+    });
+  });
+
+  it("tries English first when no language is specified", async () => {
+    mockFetchTranscript.mockResolvedValue([
+      { text: "Hello world", offset: 0, duration: 5 },
+    ]);
+
+    const result = await fetchYouTubeTranscript("dQw4w9WgXcQ");
+    expect(result).toBe("Hello world");
+    expect(mockFetchTranscript).toHaveBeenCalledWith("dQw4w9WgXcQ", {
+      lang: "en",
+    });
+  });
+
+  it("falls back to YouTube's default track when English isn't available", async () => {
+    mockFetchTranscript
+      .mockRejectedValueOnce(
+        new YoutubeTranscriptNotAvailableLanguageError(
+          "en",
+          ["ar"],
+          "dQw4w9WgXcQ"
+        )
+      )
+      .mockResolvedValueOnce([{ text: "مرحبا بالعالم", offset: 0, duration: 5 }]);
+
+    const result = await fetchYouTubeTranscript("dQw4w9WgXcQ");
+    expect(result).toBe("مرحبا بالعالم");
+    expect(mockFetchTranscript).toHaveBeenNthCalledWith(1, "dQw4w9WgXcQ", {
+      lang: "en",
+    });
+    expect(mockFetchTranscript).toHaveBeenNthCalledWith(2, "dQw4w9WgXcQ", undefined);
   });
 
   it("passes the requested language to fetchTranscript", async () => {

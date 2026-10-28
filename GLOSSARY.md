@@ -34,8 +34,8 @@ Search here first before reading entire files.
 ### `app/modules/youtube/index.ts`
 - **`TranscriptNotFoundError`** (class) — Custom error thrown when a YouTube video has no captions. Signals the Whisper fallback in the `transcript` orchestrator.
 - **`UNAVAILABLE_ERRORS`** (const) — Package error classes meaning "captions unavailable" (`YoutubeTranscriptNotAvailableError`, `YoutubeTranscriptDisabledError`, `YoutubeTranscriptVideoUnavailableError`, `YoutubeTranscriptNotAvailableLanguageError`).
-- **`FetchYouTubeTranscriptOptions`** (type) — `{ language?: string }` — ISO 639-1 language code for the captions; omitted means the video's default caption language.
-- **`fetchYouTubeTranscript(videoId, opts?)`** — Fetches captions via `youtube-transcript`'s named `fetchTranscript` export (v1.3.x has no default export), passing `{ lang }` when a language is requested. Returns joined text; maps `UNAVAILABLE_ERRORS` to `TranscriptNotFoundError`, rethrows everything else (e.g. network errors).
+- **`FetchYouTubeTranscriptOptions`** (type) — `{ language?: string }` — ISO 639-1 language code for the captions; omitted means English is tried first as an "auto-detect" default, falling back to the video's default caption language if English is unavailable.
+- **`fetchYouTubeTranscript(videoId, opts?)`** — Fetches captions via `youtube-transcript`'s named `fetchTranscript` export. When no language is requested, tries `lang: "en"` first as an "auto-detect" default, then falls back to the library's default track (`captionTracks[0]`) if English isn't available. Returns joined text; maps `UNAVAILABLE_ERRORS` to `TranscriptNotFoundError`, rethrows everything else (e.g. network errors).
 - **`VideoMetadata`** (interface) — `{ title, channel, url, id?, originalTitle?, channelId?, uploadDate?, videoDate? }` — public metadata for a YouTube video; the optional fields are populated when fetched via yt-dlp.
 - **`getVideoMetadata(url)`** — Fetches title + channel via YouTube's public oEmbed endpoint (plain `fetch`, no key/yt-dlp). Never throws: any failure returns placeholder `{ title: "YouTube Video", channel: "Unknown" }`. Used by: `cli`, `routes`.
 - **`fetchVideoMetadata(url)`** — Fetches rich metadata via `yt-dlp --dump-single-json` (video id, title, original title, channel name + id, upload / video date). Falls back to `getVideoMetadata` (oEmbed) when yt-dlp is unavailable or fails. Used by: `transcript`, `cli`.
@@ -129,7 +129,7 @@ Search here first before reading entire files.
 
 ### `app/components/ui/StepsBox.tsx`
 - **`StepsBoxProps`** (type) — `{ steps: string[], activeIndex: number, heading? }`.
-- **`StepsBox`** — Animated step-by-step progress box inside a MUI `Surface`. Shows each step with a numbered circle (pending / active / complete) and a pulse animation on the active step, used while a transcription is in flight.
+- **`StepsBox`** — Animated step-by-step progress box inside a MUI `Surface`. Shows each step with a numbered circle (pending / active / complete) and a pulse animation on the active step; while a step is loading a spinner ring appears around its number (and the number stays visible), used while a transcription is in flight.
 
 ### `app/components/ui/Markdown.tsx`
 - **`MarkdownProps`** (type) — `{ children: string }` — markdown source to render.
@@ -210,7 +210,7 @@ Search here first before reading entire files.
 - **`vite.config.ts`** — Vite config with React Router plugin (skipped during tests) and Vitest configuration (jsdom environment). Inlines the entire MUI + Emotion chain into the SSR bundle (`ssr.noExternal: ["@mui/*", "@emotion/*"]`) because @mui/icons-material's ESM build directory-imports `@mui/material/utils`, which Node's native ESM resolver rejects; the whole chain must be inlined together so Vite's resolver handles every import (mixing inlined ESM with externalized CJS breaks default-export interop).
 - **`vitest.setup.ts`** — Test setup with `@testing-library/jest-dom` and cleanup after each test.
 - **`tsconfig.json`** — TypeScript configuration with path aliases (`@/*` → `./app/*`); includes `cli/**/*.ts`.
-- **`package.json`** — Dependencies: React Router v8, MUI v6, Vitest, `@testing-library/react`, `youtube-transcript`, `@xenova/transformers`, `openai` (OpenRouter via baseURL), dev `tsx` (CLI runner). Scripts include `cli` (`node --env-file-if-exists=.env --import tsx cli/index.ts`, so a local `.env` with `OPENROUTER_API_KEY`/`OPENROUTER_MODEL` is auto-loaded).
+- **`package.json`** — Dependencies: React Router v8, MUI v9, Vitest, `@testing-library/react`, `youtube-transcript`, `@xenova/transformers`, `openai` (OpenRouter via baseURL), dev `tsx` (CLI runner). Scripts include `cli` (`node --env-file-if-exists=.env --import tsx cli/index.ts`, so a local `.env` with `OPENROUTER_API_KEY`/`OPENROUTER_MODEL` is auto-loaded).
 - **`transcripts/`** — Gitignored runtime output directory for CLI-generated markdown docs. Single videos go to `transcripts/<channel>/`; playlists to `transcripts/<channel>/<playlist>/`.
 ### `app/components/ui/index.ts`
 - Barrel export for all UI primitives.

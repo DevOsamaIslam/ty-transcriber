@@ -122,8 +122,10 @@ export function TranscriptFilter() {
         onChange={handleSearchChange}
         size="small"
         sx={{ flex: 1, minWidth: 220 }}
-        InputProps={{
-          startAdornment: <Search sx={{ color: "text.secondary", mr: 1 }} />,
+        slotProps={{
+          input: {
+            startAdornment: <Search sx={{ color: "text.secondary", mr: 1 }} />,
+          },
         }}
       />
       <FormControl size="small" sx={{ minWidth: 140 }}>
