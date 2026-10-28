@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 var mockHolder: {
   parseYouTubeUrl: ReturnType<typeof vi.fn>;
   fetchYouTubeTranscript: ReturnType<typeof vi.fn>;
-  getVideoMetadata: ReturnType<typeof vi.fn>;
+  fetchVideoMetadata: ReturnType<typeof vi.fn>;
   transcribeAudio: ReturnType<typeof vi.fn>;
   saveTranscript: ReturnType<typeof vi.fn>;
   fetchPlaylist: ReturnType<typeof vi.fn>;
@@ -31,11 +31,11 @@ vi.mock("../youtube", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../youtube")>();
   mockHolder = mockHolder || {};
   mockHolder.fetchYouTubeTranscript = vi.fn();
-  mockHolder.getVideoMetadata = vi.fn();
+  mockHolder.fetchVideoMetadata = vi.fn();
   return {
     ...actual,
     fetchYouTubeTranscript: mockHolder.fetchYouTubeTranscript,
-    getVideoMetadata: mockHolder.getVideoMetadata,
+    fetchVideoMetadata: mockHolder.fetchVideoMetadata,
   };
 });
 
@@ -66,7 +66,7 @@ import {
 beforeEach(() => {
   mockHolder.parseYouTubeUrl.mockReset();
   mockHolder.fetchYouTubeTranscript.mockReset();
-  mockHolder.getVideoMetadata.mockReset();
+  mockHolder.fetchVideoMetadata.mockReset();
   mockHolder.transcribeAudio.mockReset();
   mockHolder.saveTranscript.mockReset();
   mockHolder.fetchPlaylist.mockReset();
@@ -83,9 +83,13 @@ describe("getTranscriptForUrl", () => {
       id: "dQw4w9WgXcQ",
       url: "https://youtube.com/watch?v=dQw4w9WgXcQ",
     });
-    mockHolder.getVideoMetadata.mockResolvedValue({
+    mockHolder.fetchVideoMetadata.mockResolvedValue({
       title: "A video",
       channel: "A channel",
+      channelId: "UCabc123",
+      originalTitle: "A video (original)",
+      uploadDate: "2024-01-15",
+      videoDate: "2024-01-15",
       url: "https://youtube.com/watch?v=dQw4w9WgXcQ",
     });
     mockHolder.fetchYouTubeTranscript.mockResolvedValue("Hello world transcript");
@@ -95,12 +99,20 @@ describe("getTranscriptForUrl", () => {
     expect(result.transcript).toBe("Hello world transcript");
     expect(result.sourceUrl).toBe("https://youtube.com/watch?v=dQw4w9WgXcQ");
     expect(result.channel).toBe("A channel");
+    expect(result.channelId).toBe("UCabc123");
+    expect(result.originalTitle).toBe("A video (original)");
+    expect(result.uploadDate).toBe("2024-01-15");
+    expect(result.videoDate).toBe("2024-01-15");
     expect(result.source).toBe("captions");
     expect(result.skipped).toBe(true);
     expect(mockHolder.saveTranscript).toHaveBeenCalledWith(
       expect.objectContaining({
         id: "dQw4w9WgXcQ",
         channel: "A channel",
+        channelId: "UCabc123",
+        originalTitle: "A video (original)",
+        uploadDate: "2024-01-15",
+        videoDate: "2024-01-15",
         source: "captions",
       })
     );
@@ -112,7 +124,7 @@ describe("getTranscriptForUrl", () => {
       id: "no-captions",
       url: "https://youtube.com/watch?v=no-captions",
     });
-    mockHolder.getVideoMetadata.mockResolvedValue({
+    mockHolder.fetchVideoMetadata.mockResolvedValue({
       title: "No captions",
       channel: "A channel",
       url: "https://youtube.com/watch?v=no-captions",
@@ -140,7 +152,7 @@ describe("getTranscriptForUrl", () => {
       id: "es-video",
       url: "https://youtube.com/watch?v=es-video",
     });
-    mockHolder.getVideoMetadata.mockResolvedValue({
+    mockHolder.fetchVideoMetadata.mockResolvedValue({
       title: "Español",
       channel: "A channel",
       url: "https://youtube.com/watch?v=es-video",
@@ -168,7 +180,7 @@ describe("getTranscriptForUrl", () => {
       id: "no-captions-es",
       url: "https://youtube.com/watch?v=no-captions-es",
     });
-    mockHolder.getVideoMetadata.mockResolvedValue({
+    mockHolder.fetchVideoMetadata.mockResolvedValue({
       title: "No captions ES",
       channel: "A channel",
       url: "https://youtube.com/watch?v=no-captions-es",
@@ -196,7 +208,7 @@ describe("getTranscriptForUrl", () => {
       id: "default-lang",
       url: "https://youtube.com/watch?v=default-lang",
     });
-    mockHolder.getVideoMetadata.mockResolvedValue({
+    mockHolder.fetchVideoMetadata.mockResolvedValue({
       title: "Default",
       channel: "A channel",
       url: "https://youtube.com/watch?v=default-lang",
@@ -218,7 +230,7 @@ describe("getTranscriptForUrl", () => {
       id: "fail-all",
       url: "https://youtube.com/watch?v=fail-all",
     });
-    mockHolder.getVideoMetadata.mockResolvedValue({
+    mockHolder.fetchVideoMetadata.mockResolvedValue({
       title: "Fail all",
       channel: "A channel",
       url: "https://youtube.com/watch?v=fail-all",
@@ -255,7 +267,7 @@ describe("getTranscriptsForPlaylist", () => {
       const match = url.match(/[?&]v=([a-zA-Z0-9_-]+)/);
       return { type: "video", id: match?.[1] ?? "unknown", url };
     });
-    mockHolder.getVideoMetadata.mockResolvedValue({
+    mockHolder.fetchVideoMetadata.mockResolvedValue({
       title: "T",
       channel: "C",
       url: "",
@@ -282,6 +294,7 @@ describe("getTranscriptsForPlaylist", () => {
       sourceUrl: "https://youtube.com/watch?v=v1",
       channel: "C",
       playlistId: "PLabc123",
+      playlistIndex: 1,
       source: "captions",
       skipped: true,
     });
@@ -292,16 +305,19 @@ describe("getTranscriptsForPlaylist", () => {
       sourceUrl: "https://youtube.com/watch?v=v2",
       channel: "C",
       playlistId: "PLabc123",
+      playlistIndex: 2,
       source: "whisper",
       skipped: false,
     });
     expect(mockHolder.saveTranscript).toHaveBeenCalledTimes(2);
     expect(mockHolder.saveTranscript.mock.calls[0][0]).toMatchObject({
       playlistId: "PLabc123",
+      playlistIndex: 1,
       source: "captions",
     });
     expect(mockHolder.saveTranscript.mock.calls[1][0]).toMatchObject({
       playlistId: "PLabc123",
+      playlistIndex: 2,
       source: "whisper",
     });
   });
@@ -314,7 +330,7 @@ describe("getTranscriptsForPlaylist", () => {
       const match = url.match(/[?&]v=([a-zA-Z0-9_-]+)/);
       return { type: "video", id: match?.[1] ?? "unknown", url };
     });
-    mockHolder.getVideoMetadata.mockResolvedValue({
+    mockHolder.fetchVideoMetadata.mockResolvedValue({
       title: "T",
       channel: "C",
       url: "",

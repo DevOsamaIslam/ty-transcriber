@@ -12,7 +12,7 @@ import { fetchPlaylist } from "../app/modules/playlist";
 import {
   fetchYouTubeTranscript,
   TranscriptNotFoundError,
-  getVideoMetadata,
+  fetchVideoMetadata,
 } from "../app/modules/youtube";
 import {
   downloadAudio,
@@ -102,8 +102,12 @@ async function handleVideo(
 
   // 1. Metadata.
   console.log(`\n[1/${totalSteps}] Fetching video metadata…`);
-  const metadata = await getVideoMetadata(url);
-  console.log(`  • ${metadata.title} — ${metadata.channel}`);
+  const metadata = await fetchVideoMetadata(url);
+  console.log(
+    `  • ${metadata.title} — ${metadata.channel}${
+      metadata.channelId ? ` (${metadata.channelId})` : ""
+    }${metadata.uploadDate ? ` · uploaded ${metadata.uploadDate}` : ""}`
+  );
 
   // 2. Search for the existing transcript (YouTube captions). When found,
   //    they are the cheapest, most accurate source — skip download + Whisper.
@@ -210,17 +214,12 @@ async function handlePlaylist(
     console.log(`\n[${index + 1}/${videos.length}] ${video.id}`);
 
     // Metadata (title + channel) for this video.
-    let metadata: { title: string; channel: string; url: string };
-    try {
-      metadata = await getVideoMetadata(video.url);
-    } catch (err) {
-      console.warn(
-        `  ⚠ Metadata unavailable for ${video.id}: ${
-          err instanceof Error ? err.message : String(err)
-        }`
-      );
-      metadata = { title: "YouTube Video", channel: "Unknown", url: video.url };
-    }
+    const metadata = await fetchVideoMetadata(video.url);
+    console.log(
+      `  • ${metadata.title} — ${metadata.channel}${
+        metadata.channelId ? ` (${metadata.channelId})` : ""
+      }`
+    );
     if (!channelDir) channelDir = slugify(metadata.channel);
     const dir = join("transcripts", channelDir, playlistDir);
 

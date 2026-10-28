@@ -6,6 +6,8 @@ import {
   YoutubeTranscriptVideoUnavailableError,
 } from "youtube-transcript";
 
+import { runCommandWithOutput } from "../../utils/shell";
+
 export class TranscriptNotFoundError extends Error {
   constructor(videoId: string) {
     super(`No captions available for video: ${videoId}`);
@@ -61,6 +63,16 @@ export interface VideoMetadata {
   title: string;
   channel: string;
   url: string;
+  /** YouTube video id (when fetched via yt-dlp). */
+  id?: string;
+  /** Original title as published on YouTube. */
+  originalTitle?: string;
+  /** YouTube channel id. */
+  channelId?: string;
+  /** Video upload date, ISO 8601 (e.g. "2024-01-15"). */
+  uploadDate?: string;
+  /** Video date, ISO 8601 (e.g. "2024-01-15"). Populated from the upload date. */
+  videoDate?: string;
 }
 
 const YT_OEMBED_URL = "https://www.youtube.com/oembed";
@@ -85,5 +97,51 @@ export async function getVideoMetadata(url: string): Promise<VideoMetadata> {
     };
   } catch {
     return fallback;
+  }
+}
+
+/**
+ * Parses yt-dlp's `upload_date` (YYYYMMDD) into an ISO date string
+ * (YYYY-MM-DD). Returns undefined when the value is missing or malformed.
+ */
+function parseYtDlpDate(uploadDate: unknown): string | undefined {
+  if (typeof uploadDate !== "string" || !/^\d{8}$/.test(uploadDate)) {
+    return undefined;
+  }
+  return `${uploadDate.slice(0, 4)}-${uploadDate.slice(4, 6)}-${uploadDate.slice(6, 8)}`;
+}
+
+/**
+ * Fetches rich video metadata via yt-dlp's single-JSON dump: video id, title,
+ * original title, channel name + id, and upload / video date. Falls back to the
+ * lightweight oEmbed metadata (title + channel) when yt-dlp is unavailable or
+ * fails, so callers always get a usable result.
+ */
+export async function fetchVideoMetadata(url: string): Promise<VideoMetadata> {
+  try {
+    const stdout = await runCommandWithOutput(
+      `yt-dlp --dump-single-json --no-warnings --quiet "${url}"`
+    );
+    const entry = JSON.parse(stdout) as Record<string, unknown>;
+    const uploadDate = parseYtDlpDate(entry.upload_date);
+    return {
+      id: typeof entry.id === "string" ? entry.id : undefined,
+      title: typeof entry.title === "string" ? entry.title : "",
+      originalTitle:
+        typeof entry.title === "string" ? entry.title : undefined,
+      channel:
+        typeof entry.channel === "string"
+          ? entry.channel
+          : typeof entry.uploader === "string"
+            ? entry.uploader
+            : "",
+      channelId: typeof entry.channel_id === "string" ? entry.channel_id : undefined,
+      uploadDate: uploadDate ?? undefined,
+      videoDate: uploadDate ?? undefined,
+      url,
+    };
+  } catch {
+    const meta = await getVideoMetadata(url);
+    return { title: meta.title, channel: meta.channel, url: meta.url };
   }
 }

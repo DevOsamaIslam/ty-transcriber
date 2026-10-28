@@ -2,7 +2,7 @@ import { parseYouTubeUrl, isPlaylist, extractId } from "../url";
 import {
   fetchYouTubeTranscript,
   TranscriptNotFoundError,
-  getVideoMetadata,
+  fetchVideoMetadata,
 } from "../youtube";
 import { transcribeAudio } from "../whisper";
 import { saveTranscript } from "../storage";
@@ -13,21 +13,27 @@ export { TranscriptNotFoundError };
 export interface TranscriptResult {
   id: string;
   title: string;
+  /** Original title as published on YouTube (may differ from `title`). */
+  originalTitle?: string;
   transcript: string;
   sourceUrl: string;
   channel?: string;
+  /** YouTube channel id. */
+  channelId?: string;
   playlistId?: string;
+  /** 1-based position of the video within its playlist, if any. */
+  playlistIndex?: number;
   /** Where the transcript came from: YouTube captions or Whisper. */
   source?: "captions" | "whisper";
   /** True when download/transcription was skipped because captions exist. */
   skipped?: boolean;
   type?: "video" | "playlist";
-  /**
-   * Language used for the transcript (ISO 639-1, e.g. "en", "es").
-   * Undefined means the video's default language was used (captions default
-   * track or Whisper auto-detection).
-   */
+  /** Language used for the transcript (ISO 639-1). Undefined means the video's default language was used. */
   language?: string;
+  /** Video upload date, ISO 8601 (e.g. "2024-01-15"). */
+  uploadDate?: string;
+  /** Video date, ISO 8601 (e.g. "2024-01-15"). */
+  videoDate?: string;
 }
 
 /**
@@ -38,10 +44,10 @@ export interface TranscriptResult {
  */
 async function processVideo(
   url: string,
-  opts?: { playlistId?: string; language?: string }
+  opts?: { playlistId?: string; playlistIndex?: number; language?: string }
 ): Promise<TranscriptResult> {
   const videoId = extractId(parseYouTubeUrl(url));
-  const metadata = await getVideoMetadata(url);
+  const metadata = await fetchVideoMetadata(url);
   const language = opts?.language;
 
   let transcript: string;
@@ -63,24 +69,34 @@ async function processVideo(
   await saveTranscript({
     id: videoId,
     title: metadata.title,
+    originalTitle: metadata.originalTitle,
     transcript,
     sourceUrl: url,
     channel: metadata.channel,
+    channelId: metadata.channelId,
     playlistId: opts?.playlistId,
+    playlistIndex: opts?.playlistIndex,
     source,
     language,
+    uploadDate: metadata.uploadDate,
+    videoDate: metadata.videoDate,
   });
 
   return {
     id: videoId,
     title: metadata.title,
+    originalTitle: metadata.originalTitle,
     transcript,
     sourceUrl: url,
     channel: metadata.channel,
+    channelId: metadata.channelId,
     playlistId: opts?.playlistId,
+    playlistIndex: opts?.playlistIndex,
     source,
     skipped,
     language,
+    uploadDate: metadata.uploadDate,
+    videoDate: metadata.videoDate,
   };
 }
 
@@ -120,9 +136,15 @@ export async function getTranscriptsForPlaylist(
   const playlistId = extractId(parsed);
   const results: TranscriptResult[] = [];
 
-  for (const video of videos) {
+  for (const [index, video] of videos.entries()) {
     try {
-      results.push(await processVideo(video.url, { playlistId, language: opts?.language }));
+      results.push(
+        await processVideo(video.url, {
+          playlistId,
+          language: opts?.language,
+          playlistIndex: index + 1,
+        })
+      );
     } catch (err) {
       console.error(
         `Failed to transcribe playlist video ${video.id}: ${

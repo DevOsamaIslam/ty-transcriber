@@ -8,14 +8,21 @@ vi.mock("youtube-transcript", async (importOriginal) => {
   };
 });
 
-import { fetchYouTubeTranscript, getVideoMetadata, TranscriptNotFoundError } from "./index";
+vi.mock("../../utils/shell", () => ({
+  runCommandWithOutput: vi.fn(),
+}));
+
+import { fetchYouTubeTranscript, getVideoMetadata, fetchVideoMetadata, TranscriptNotFoundError } from "./index";
 import * as youtubeTranscript from "youtube-transcript";
 import { YoutubeTranscriptNotAvailableError } from "youtube-transcript";
+import { runCommandWithOutput } from "../../utils/shell";
 
 const mockFetchTranscript = youtubeTranscript.fetchTranscript as unknown as ReturnType<typeof vi.fn>;
+const mockRunCommandWithOutput = runCommandWithOutput as unknown as ReturnType<typeof vi.fn>;
 
 beforeEach(() => {
   mockFetchTranscript.mockReset();
+  mockRunCommandWithOutput.mockReset();
 });
 
 afterEach(() => {
@@ -117,5 +124,92 @@ describe("getVideoMetadata", () => {
       channel: "Unknown",
       url: VIDEO_URL,
     });
+  });
+});
+
+describe("fetchVideoMetadata", () => {
+  const VIDEO_URL = "https://youtube.com/watch?v=dQw4w9WgXcQ";
+
+  it("returns rich metadata parsed from yt-dlp's JSON dump", async () => {
+    mockRunCommandWithOutput.mockResolvedValue(
+      JSON.stringify({
+        id: "dQw4w9WgXcQ",
+        title: "Never Gonna Give You Up",
+        channel: "Rick Astley",
+        channel_id: "UCabc123",
+        upload_date: "20240115",
+      })
+    );
+
+    const result = await fetchVideoMetadata(VIDEO_URL);
+
+    expect(result).toMatchObject({
+      id: "dQw4w9WgXcQ",
+      title: "Never Gonna Give You Up",
+      channel: "Rick Astley",
+      channelId: "UCabc123",
+      originalTitle: "Never Gonna Give You Up",
+      uploadDate: "2024-01-15",
+      videoDate: "2024-01-15",
+      url: VIDEO_URL,
+    });
+    expect(mockRunCommandWithOutput).toHaveBeenCalledWith(
+      expect.stringContaining("yt-dlp --dump-single-json")
+    );
+  });
+
+  it("uses the uploader as the channel name when `channel` is absent", async () => {
+    mockRunCommandWithOutput.mockResolvedValue(
+      JSON.stringify({
+        id: "dQw4w9WgXcQ",
+        title: "Some Video",
+        uploader: "Some Uploader",
+        channel_id: "UCxyz",
+        upload_date: "20230505",
+      })
+    );
+
+    const result = await fetchVideoMetadata(VIDEO_URL);
+
+    expect(result.channel).toBe("Some Uploader");
+    expect(result.channelId).toBe("UCxyz");
+    expect(result.uploadDate).toBe("2023-05-05");
+    expect(result.videoDate).toBe("2023-05-05");
+  });
+
+  it("falls back to oEmbed metadata when yt-dlp fails", async () => {
+    mockRunCommandWithOutput.mockRejectedValue(new Error("yt-dlp not found"));
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: vi.fn().mockResolvedValue({
+        title: "Fallback Title",
+        author_name: "Fallback Channel",
+      }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await fetchVideoMetadata(VIDEO_URL);
+
+    expect(result).toEqual({
+      title: "Fallback Title",
+      channel: "Fallback Channel",
+      url: VIDEO_URL,
+    });
+  });
+
+  it("leaves dates undefined when yt-dlp returns no upload_date", async () => {
+    mockRunCommandWithOutput.mockResolvedValue(
+      JSON.stringify({
+        id: "dQw4w9WgXcQ",
+        title: "No Date Video",
+        channel: "A Channel",
+      })
+    );
+
+    const result = await fetchVideoMetadata(VIDEO_URL);
+
+    expect(result.uploadDate).toBeUndefined();
+    expect(result.videoDate).toBeUndefined();
+    expect(result.title).toBe("No Date Video");
   });
 });

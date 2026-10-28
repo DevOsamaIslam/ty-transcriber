@@ -15,10 +15,12 @@ export type TranscriptViewerProps = {
 export function TranscriptViewer({ transcript }: TranscriptViewerProps) {
   return (
     <Surface sx={{ p: 3, mb: 2 }}>
-      <Typography variant="h6" component="h3" sx={{ mb: 2 }}>
+      {/* dir="auto": Arabic titles/transcripts must render right-to-left
+          without forcing every page to RTL. */}
+      <Typography variant="h6" component="h3" sx={{ mb: 2 }} dir="auto">
         {transcript.title}
       </Typography>
-      <Typography variant="body1" whiteSpace="pre-wrap" sx={{ mb: 3 }}>
+      <Typography variant="body1" whiteSpace="pre-wrap" sx={{ mb: 3 }} dir="auto">
         {transcript.transcript}
       </Typography>
       <ActionButton

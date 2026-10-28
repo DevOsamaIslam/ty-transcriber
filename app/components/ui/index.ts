@@ -5,3 +5,4 @@ export { LoadingSpinner } from "./LoadingSpinner";
 export { EmptyState, type EmptyStateProps } from "./EmptyState";
 export { LanguageSelect, type LanguageSelectProps, LANGUAGES } from "./LanguageSelect";
 export { StepsBox, type StepsBoxProps } from "./StepsBox";
+export { Logo, type LogoProps } from "./Logo";

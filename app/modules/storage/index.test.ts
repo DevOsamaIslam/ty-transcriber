@@ -63,6 +63,42 @@ describe("storage module (mongo)", () => {
       const result = await getTranscript("a");
       expect(result?.language).toBe("es");
     });
+
+    it("saves and retrieves the extended metadata fields", async () => {
+      await saveTranscript({
+        id: "ext1",
+        title: "Title",
+        originalTitle: "Original Title",
+        transcript: "content",
+        sourceUrl: "https://youtube.com/watch?v=ext1",
+        channel: "Channel Name",
+        channelId: "UCabc123",
+        playlistId: "PLabc123",
+        playlistIndex: 3,
+        source: "whisper",
+        language: "en",
+        uploadDate: "2024-01-15",
+        videoDate: "2024-01-15",
+      });
+
+      const result = await getTranscript("ext1");
+      expect(result).toMatchObject({
+        id: "ext1",
+        title: "Title",
+        originalTitle: "Original Title",
+        transcript: "content",
+        sourceUrl: "https://youtube.com/watch?v=ext1",
+        channel: "Channel Name",
+        channelId: "UCabc123",
+        playlistId: "PLabc123",
+        playlistIndex: 3,
+        source: "whisper",
+        language: "en",
+        uploadDate: "2024-01-15",
+        videoDate: "2024-01-15",
+      });
+      expect(result?.createdAt).toBeDefined();
+    });
   });
 
   describe("listTranscripts", () => {

@@ -11,14 +11,24 @@ import { connectDb } from "../db";
 export interface Transcript {
   id: string;
   title: string;
+  /** Original title as published on YouTube (may differ from `title`). */
+  originalTitle?: string;
   transcript: string;
   sourceUrl: string;
   channel?: string;
+  /** YouTube channel id. */
+  channelId?: string;
   playlistId?: string;
+  /** 1-based position of the video within its playlist, if any. */
+  playlistIndex?: number;
   /** Where the transcript came from: YouTube captions or Whisper. */
   source?: "captions" | "whisper";
   /** Language used for the transcript (ISO 639-1). Undefined = video's default language. */
   language?: string;
+  /** Video upload date, ISO 8601 (e.g. "2024-01-15"). */
+  uploadDate?: string;
+  /** Video date, ISO 8601 (e.g. "2024-01-15"). */
+  videoDate?: string;
   createdAt: string;
 }
 
@@ -48,14 +58,34 @@ class TranscriptDoc {
   @prop({ type: () => String })
   public channel?: string;
 
+  /** YouTube channel id. */
+  @prop({ type: () => String })
+  public channelId?: string;
+
   @prop({ type: () => String })
   public playlistId?: string;
+
+  /** 1-based position of the video within its playlist, if any. */
+  @prop({ type: () => Number })
+  public playlistIndex?: number;
 
   @prop({ type: () => String })
   public source?: "captions" | "whisper";
 
   @prop({ type: () => String })
   public language?: string;
+
+  /** Video upload date, ISO 8601. */
+  @prop({ type: () => String })
+  public uploadDate?: string;
+
+  /** Video date, ISO 8601. */
+  @prop({ type: () => String })
+  public videoDate?: string;
+
+  /** Original title as published on YouTube. */
+  @prop({ type: () => String })
+  public originalTitle?: string;
 
   public createdAt!: Date;
   public updatedAt!: Date;
@@ -75,12 +105,17 @@ function toTranscript(doc: DocumentType<TranscriptDoc>): Transcript {
   return {
     id: doc.videoId,
     title: doc.title,
+    originalTitle: doc.originalTitle ?? undefined,
     transcript: doc.transcript,
     sourceUrl: doc.sourceUrl,
     channel: doc.channel ?? undefined,
+    channelId: doc.channelId ?? undefined,
     playlistId: doc.playlistId ?? undefined,
+    playlistIndex: doc.playlistIndex ?? undefined,
     source: doc.source ?? undefined,
     language: doc.language ?? undefined,
+    uploadDate: doc.uploadDate ?? undefined,
+    videoDate: doc.videoDate ?? undefined,
     createdAt: doc.createdAt.toISOString(),
   };
 }
@@ -88,12 +123,17 @@ function toTranscript(doc: DocumentType<TranscriptDoc>): Transcript {
 export async function saveTranscript(data: {
   id: string;
   title: string;
+  originalTitle?: string;
   transcript: string;
   sourceUrl: string;
   channel?: string;
+  channelId?: string;
   playlistId?: string;
+  playlistIndex?: number;
   source?: "captions" | "whisper";
   language?: string;
+  uploadDate?: string;
+  videoDate?: string;
 }): Promise<void> {
   const TranscriptModel = await getTranscriptModel();
   await TranscriptModel.findOneAndUpdate(
@@ -103,10 +143,15 @@ export async function saveTranscript(data: {
         title: data.title,
         transcript: data.transcript,
         sourceUrl: data.sourceUrl,
+        ...(data.originalTitle !== undefined && { originalTitle: data.originalTitle }),
         ...(data.channel !== undefined && { channel: data.channel }),
+        ...(data.channelId !== undefined && { channelId: data.channelId }),
         ...(data.playlistId !== undefined && { playlistId: data.playlistId }),
+        ...(data.playlistIndex !== undefined && { playlistIndex: data.playlistIndex }),
         ...(data.source !== undefined && { source: data.source }),
         ...(data.language !== undefined && { language: data.language }),
+        ...(data.uploadDate !== undefined && { uploadDate: data.uploadDate }),
+        ...(data.videoDate !== undefined && { videoDate: data.videoDate }),
       },
     },
     { upsert: true, setDefaultsOnInsert: true }
