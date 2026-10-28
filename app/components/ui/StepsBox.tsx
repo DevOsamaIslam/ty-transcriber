@@ -44,7 +44,7 @@ export function StepsBox({ steps, activeIndex, heading = "Transcribing…" }: St
                     top: 10,
                     bottom: 10,
                     width: 2,
-                    bgcolor: isComplete ? "success.main" : "grey.300",
+                    bgcolor: isComplete ? "primary.main" : "divider",
                   }}
                 />
               )}
@@ -54,11 +54,11 @@ export function StepsBox({ steps, activeIndex, heading = "Transcribing…" }: St
                   height: 20,
                   borderRadius: "50%",
                   backgroundColor: isComplete
-                    ? "success.main"
-                    : isActive
                     ? "primary.main"
-                    : "grey.300",
-                  color: isComplete || isActive ? "common.white" : "grey.600",
+                    : isActive
+                    ? "warning.main"
+                    : "divider",
+                  color: isActive ? "common.white" : isComplete ? "text.primary" : "text.secondary",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
@@ -67,7 +67,7 @@ export function StepsBox({ steps, activeIndex, heading = "Transcribing…" }: St
                   flexShrink: 0,
                   border: isActive ? "2px solid currentColor" : undefined,
                   boxShadow: isActive
-                    ? "0 0 0 4px rgba(25, 118, 210, 0.25)"
+                    ? "0 0 0 4px rgba(255, 184, 28, 0.25)"
                     : undefined,
                   animation: isActive ? "pulse 1.5s infinite" : undefined,
                 }}

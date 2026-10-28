@@ -104,7 +104,7 @@ Search here first before reading entire files.
 
 ### `app/components/ui/Logo.tsx`
 - **`LogoProps`** (type) — `{ sx? }`
-- **`Logo`** — Placeholder brand mark: an inline SVG (rounded capture card with sound waves) plus the "ty-transcriber" wordmark in `currentColor`, so it adapts to the app bar. Ships without requiring an external image asset.
+- **`Logo`** — Brand mark: renders the `public/logo.png` asset (32x32) plus the "ty-transcriber" wordmark in `currentColor`, so it adapts to the app bar. Linked to the home page from `NavBar`.
 
 
 ### `app/components/TranscriptCard.tsx`
@@ -188,7 +188,8 @@ Search here first before reading entire files.
 - Omitted — React Router v8 provides a built-in default SSR entry (streaming, error boundaries, bot detection). A custom entry that wires `createRequestHandler` to a global build fails at runtime with "Cannot read properties of undefined (reading 'routes')"; if re-adding one, accept the framework-provided `EntryContext` in `handleRequest(request, status, headers, context)` instead.
 
 ### `app/root.tsx`
-- **`theme`** (const) — MUI theme (light mode, primary `#1976d2`) used by `ThemeProvider`; extended here rather than per component.
+- **`theme`** (const) — MUI theme (light mode) using the brand palette: primary `#FFB81C` (amber) with dark contrast text `#202532`, secondary `#C9004B` (crimson) with white contrast text, warning `#B83E0A` (dark orange) for small text on light backgrounds, background `#FFF9F2`, paper `#FFFFFF`, text primary `#202532`, text secondary `#737987`, divider `#E9E5E0`. ~80–90% of the interface stays neutral; warm colors are reserved for important actions and branding. Used by `ThemeProvider`; extended here rather than per component.
+- **CSS custom properties** — `:root` in `index.html` exposes `--brand-amber`, `--brand-orange`, `--brand-coral`, `--brand-crimson`, `--text-dark-orange`, `--background`, `--surface`, `--text-primary`, `--text-secondary`, `--border`, and `--brand-gradient`.
 - **`loader`** — Lists all stored transcripts (`listTranscripts`; degrades to `[]` if the database is unavailable) so the shell's history sidebar is populated on every route.
 - **`Root`** — App shell: fixed `NavBar` app bar (hamburger opens the mobile drawer), the one sticky history `Sidebar` on desktop — item clicks only navigate, they never open a drawer — or the same `Sidebar` in a temporary `Drawer` on mobile (closes on item click / backdrop). Drawer state uses explicit open/close handlers, never a toggle. (`LiveReload` is not exported in React Router v8 — do not re-add.)
 - **`<meta charSet="utf-8" />`** — Must remain the first element in `<head>`: the server sends `Content-Type: text/html` without a charset, so without this declaration browsers fall back to Windows-1252 and UTF-8 Arabic (titles/transcripts) renders as mojibake (`Ø§Ù„Ù†Ø¨ÙŠ…`).

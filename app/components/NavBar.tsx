@@ -17,7 +17,7 @@ export interface NavBarProps {
  */
 export function NavBar({ onMenuClick }: NavBarProps) {
   return (
-    <AppBar position="fixed" color="primary">
+    <AppBar position="fixed" sx={{ bgcolor: "background.paper", borderBottom: 1 }}>
       <Toolbar>
         <IconButton
           color="inherit"

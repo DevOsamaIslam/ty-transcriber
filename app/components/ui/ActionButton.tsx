@@ -17,7 +17,7 @@ const VARIANT_MAP: Record<
   primary: { variant: "contained", color: "primary" },
   outline: { variant: "outlined", color: "primary" },
   text: { variant: "text", color: "primary" },
-  danger: { variant: "contained", color: "error" },
+  danger: { variant: "contained", color: "secondary" },
 };
 
 export function ActionButton({

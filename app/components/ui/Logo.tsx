@@ -6,12 +6,11 @@ export interface LogoProps {
 }
 
 /**
- * Placeholder logo for ty-transcriber.
+ * Brand logo for ty-transcriber.
  *
- * An inline SVG mark (a rounded capture card with sound waves) plus the
- * product name, so the app ships with a brand mark without requiring an
- * external image asset. Replace the SVG with a real logo asset when ready.
- * Uses `currentColor` so the mark adapts to dark/light toolbars.
+ * Uses the real `public/logo.png` asset in place of the inline SVG
+ * placeholder. The mark is rendered at the same 32x32 size as the former
+ * SVG, and the wordmark stays in `currentColor` so it adapts to the app bar.
  */
 export function Logo({ sx }: LogoProps) {
   return (
@@ -26,23 +25,14 @@ export function Logo({ sx }: LogoProps) {
         ...sx,
       }}
     >
-      <Box sx={{ flexShrink: 0 }}>
-        <svg
+      <Box sx={{ width: 32, height: 32, flexShrink: 0 }}>
+        <img
           data-testid="logo-mark"
-          width="32"
-          height="32"
-          viewBox="0 0 32 32"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        >
-        <rect x="2" y="2" width="28" height="28" rx="6" />
-        <path d="M8 16 Q16 12 24 16" />
-        <path d="M8 21 Q16 16 24 21" />
-        <circle cx="16" cy="16" r="1.5" fill="currentColor" />
-        </svg>
+          src="/logo.png"
+          alt="ty-transcriber"
+          width={32}
+          height={32}
+        />
       </Box>
       <Typography
         variant="h6"

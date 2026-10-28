@@ -22,11 +22,26 @@ export const theme = createTheme({
   palette: {
     mode: "light",
     primary: {
-      main: "#1976d2",
+      main: "#FFB81C", // brand-amber
+      dark: "#FF6B1A", // brand-orange
+      contrastText: "#202532",
+    },
+    secondary: {
+      main: "#C9004B", // brand-crimson
+      contrastText: "#FFFFFF",
+    },
+    warning: {
+      main: "#B83E0A", // dark orange for small text on light backgrounds; white text passes contrast on this
     },
     background: {
-      default: "#f5f5f5",
+      default: "#FFF9F2", // brand background
+      paper: "#FFFFFF", // brand surface
     },
+    text: {
+      primary: "#202532", // text-primary
+      secondary: "#737987", // text-secondary
+    },
+    divider: "#E9E5E0", // border
   },
   components: {
     MuiButton: {
