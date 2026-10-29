@@ -3,6 +3,7 @@ export { Surface, type SurfaceProps } from "./Surface";
 export { InputField, type InputFieldProps } from "./InputField";
 export { LoadingSpinner } from "./LoadingSpinner";
 export { EmptyState, type EmptyStateProps } from "./EmptyState";
+export { PageHeader, type PageHeaderProps } from "./PageHeader";
 export { LanguageSelect, type LanguageSelectProps, LANGUAGES } from "./LanguageSelect";
 export { StepsBox, type StepsBoxProps } from "./StepsBox";
 export { Logo, type LogoProps } from "./Logo";

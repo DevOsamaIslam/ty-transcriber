@@ -15,8 +15,9 @@ import { createJob, updateJob, type JobProgress } from "../modules/job"
 import { TranscriptViewer } from "../components/TranscriptViewer"
 import { StepsBox } from "../components/ui/StepsBox"
 import { ActionButton } from "../components/ui/ActionButton"
-import { Alert, AlertTitle, Container, Stack, Typography } from "@mui/material"
+import { Alert, AlertTitle, Container } from "@mui/material"
 import { AutoAwesomeRounded } from "@mui/icons-material"
+import { PageHeader } from "../components/ui/PageHeader"
 
 export async function loader({ params }: LoaderFunctionArgs) {
   const id = params.id
@@ -183,10 +184,23 @@ export default function TranscriptRoute() {
   }, [actionData?.jobId, navigate])
 
   return (
-    <Container maxWidth="md" sx={{ my: 4 }}>
-      <Typography variant="h4" component="h1" sx={{ mb: 4 }}>
-        Transcript
-      </Typography>
+    <Container maxWidth="md" sx={{ py: { xs: 3, md: 5 } }}>
+      <PageHeader
+        backTo={{ to: "/", label: "All transcripts" }}
+        title="Transcript"
+        actions={
+          <Form method="post" style={{ display: "inline-flex" }}>
+            <ActionButton
+              type="submit"
+              size="small"
+              variant="outline"
+              startIcon={<AutoAwesomeRounded />}
+              disabled={progress != null}>
+              Re-format
+            </ActionButton>
+          </Form>
+        }
+      />
       {serverError && (
         <Alert severity="error" sx={{ mb: 3 }}>
           <AlertTitle>Re-formatting failed</AlertTitle>
@@ -200,26 +214,6 @@ export default function TranscriptRoute() {
           heading="Re-formatting transcript…"
         />
       )}
-      <Stack direction={"row"} spacing={2} sx={{ mt: 3, mb: 2 }}>
-        <ActionButton
-          size="small"
-          variant="outline"
-          onClick={() =>
-            void navigator.clipboard.writeText(transcript.transcript)
-          }>
-          Copy to clipboard
-        </ActionButton>
-        <Form method="post">
-          <ActionButton
-            type="submit"
-            size="small"
-            variant="outline"
-            startIcon={<AutoAwesomeRounded />}
-            disabled={progress != null}>
-            Re-format
-          </ActionButton>
-        </Form>
-      </Stack>
       <TranscriptViewer transcript={transcript} />
     </Container>
   )

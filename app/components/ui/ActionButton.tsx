@@ -42,7 +42,7 @@ export function ActionButton({
         <CircularProgress
           size={18}
           data-testid="action-button-spinner"
-          style={{ marginRight: 8 }}
+          sx={{ mr: 1 }}
         />
       )}
       {!loading && children}

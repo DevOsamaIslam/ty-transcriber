@@ -3,15 +3,14 @@ import { useSearchParams } from "react-router";
 import {
   Box,
   Button,
-  Chip,
   FormControl,
   InputLabel,
   MenuItem,
+  Paper,
   Select,
   TextField,
-  Typography,
 } from "@mui/material";
-import { Clear, FilterList, Search } from "@mui/icons-material";
+import { Clear, Search } from "@mui/icons-material";
 import { LANGUAGES } from "./ui/LanguageSelect";
 
 type FilterParams = {
@@ -30,13 +29,6 @@ const SOURCE_OPTIONS: Array<{ value: string; label: string }> = [
   { value: "captions", label: "YouTube captions" },
   { value: "whisper", label: "Whisper" },
 ];
-
-const filterLayout = {
-  display: "flex",
-  gap: 2,
-  flexWrap: "wrap",
-  alignItems: "center",
-} as const;
 
 // How long to wait after the last keystroke before pushing the search query
 // to the URL and re-running the route loader.
@@ -111,85 +103,79 @@ export function TranscriptFilter() {
   };
 
   return (
-    <Box component="nav" sx={{ ...filterLayout, mb: 3 }}>
-      <Typography variant="body2" sx={{ mr: 1, color: "text.secondary", flexShrink: 0 }}>
-        Search transcripts
-      </Typography>
-      <TextField
-        label="Search"
-        placeholder="Title, channel or source URL"
-        value={localQuery}
-        onChange={handleSearchChange}
-        size="small"
-        sx={{ flex: 1, minWidth: 220 }}
-        slotProps={{
-          input: {
-            startAdornment: <Search sx={{ color: "text.secondary", mr: 1 }} />,
-          },
-        }}
-      />
-      <FormControl size="small" sx={{ minWidth: 140 }}>
-        <InputLabel>Source</InputLabel>
-        <Select
-          label="Source"
-          value={source}
-          onChange={(event) => setFilter("source", event.target.value as string)}
-        >
-          {SOURCE_OPTIONS.map((option) => (
-            <MenuItem key={option.value} value={option.value}>
-              {option.label}
-            </MenuItem>
-          ))}
-        </Select>
-      </FormControl>
-      <FormControl size="small" sx={{ minWidth: 140 }}>
-        <InputLabel>Language</InputLabel>
-        <Select
-          label="Language"
-          value={language}
-          onChange={(event) => setFilter("language", event.target.value as string)}
-        >
-          <MenuItem value="">Any</MenuItem>
-          {LANGUAGES.map((lang) => (
-            <MenuItem key={lang.code} value={lang.code}>
-              {lang.label}
-            </MenuItem>
-          ))}
-        </Select>
-      </FormControl>
-      <TextField
-        label="Channel"
-        placeholder="Channel name"
-        value={channel}
-        onChange={(event) => setFilter("channel", event.target.value)}
-        size="small"
-        sx={{ flex: 1, minWidth: 200 }}
-      />
-      {hasFilters && (
-        <Button
-          startIcon={<Clear />}
+    <Paper
+      elevation={0}
+      sx={{
+        p: 2,
+        mb: 3,
+        border: 1,
+        borderColor: "divider",
+        borderRadius: "12px",
+        bgcolor: "background.paper",
+      }}
+    >
+      <Box sx={{ display: "flex", gap: 1.5, flexWrap: "wrap", alignItems: "center" }}>
+        <TextField
+          label="Search"
+          placeholder="Title, channel or source URL"
+          value={localQuery}
+          onChange={handleSearchChange}
           size="small"
-          onClick={clearFilters}
-          sx={{ color: "text.secondary", flexShrink: 0 }}
-        >
-          Clear filters
-        </Button>
-      )}
-      {hasFilters && (
-        <Chip
-          label={[
-            q && `search: "${q}"`,
-            source && `source: ${source}`,
-            language && `language: ${language}`,
-            channel && `channel: "${channel}"`,
-          ]
-            .filter(Boolean)
-            .join("  ·  ")}
-          size="small"
-          sx={{ color: "text.secondary", flexShrink: 0 }}
-          icon={<FilterList fontSize="small" />}
+          sx={{ flex: 2, minWidth: 220 }}
+          slotProps={{
+            input: {
+              startAdornment: <Search sx={{ color: "text.secondary", mr: 1 }} />,
+            },
+          }}
         />
-      )}
-    </Box>
+        <FormControl size="small" sx={{ minWidth: 140 }}>
+          <InputLabel>Source</InputLabel>
+          <Select
+            label="Source"
+            value={source}
+            onChange={(event) => setFilter("source", event.target.value as string)}
+          >
+            {SOURCE_OPTIONS.map((option) => (
+              <MenuItem key={option.value} value={option.value}>
+                {option.label}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+        <FormControl size="small" sx={{ minWidth: 150 }}>
+          <InputLabel>Language</InputLabel>
+          <Select
+            label="Language"
+            value={language}
+            onChange={(event) => setFilter("language", event.target.value as string)}
+          >
+            <MenuItem value="">Any</MenuItem>
+            {LANGUAGES.map((lang) => (
+              <MenuItem key={lang.code} value={lang.code}>
+                {lang.label}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+        <TextField
+          label="Channel"
+          placeholder="Channel name"
+          value={channel}
+          onChange={(event) => setFilter("channel", event.target.value)}
+          size="small"
+          sx={{ flex: 1, minWidth: 180 }}
+        />
+        {hasFilters && (
+          <Button
+            startIcon={<Clear />}
+            size="small"
+            onClick={clearFilters}
+            sx={{ color: "text.secondary", flexShrink: 0 }}
+          >
+            Clear filters
+          </Button>
+        )}
+      </Box>
+    </Paper>
   );
 }

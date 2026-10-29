@@ -1,10 +1,20 @@
 import React, { useState } from "react"
 import { Form } from "react-router"
-import { Box, Checkbox, FormControlLabel, Stack } from "@mui/material"
+import {
+  Box,
+  Checkbox,
+  FormControlLabel,
+  IconButton,
+  Stack,
+  Tooltip,
+  Typography,
+} from "@mui/material"
+import { HelpOutlineRounded } from "@mui/icons-material"
 import { ActionButton } from "./ui/ActionButton"
 import { InputField } from "./ui/InputField"
 import { LanguageSelect } from "./ui/LanguageSelect"
 import { StepsBox } from "./ui/StepsBox"
+import { Surface } from "./ui/Surface"
 import type { JobProgress } from "../modules/job"
 
 export type UrlFormProps = {
@@ -21,13 +31,6 @@ export type UrlFormProps = {
   /** Real progress from the server (SSE). When set, shows the stepper below the form. */
   progress?: JobProgress | null
 }
-
-const formLayout = {
-  display: "flex",
-  gap: 8,
-  flexWrap: "wrap",
-  alignItems: "flex-start",
-} as const
 
 // Maps server job steps to stepper indices.
 const STEP_LABELS = [
@@ -53,6 +56,13 @@ function stepIndexFromProgress(step: JobProgress["step"]): number {
   }
 }
 
+// Amber accent bar on top of the form card — the primary CTA of the app.
+const cardSx = {
+  p: { xs: 2.5, md: 3 },
+  borderTop: 3,
+  borderColor: "primary.main",
+} as const
+
 export function UrlForm({
   onSubmit,
   loading,
@@ -76,8 +86,20 @@ export function UrlForm({
     onSubmit?.({ url, language, format })
   }
 
+  const header = (
+    <Box sx={{ mb: 2.5 }}>
+      <Typography variant="h6" component="h2" sx={{ fontWeight: 700 }}>
+        New transcription
+      </Typography>
+      <Typography variant="body2" color="text.secondary">
+        Paste a YouTube video or playlist URL — the transcript is saved to your
+        history.
+      </Typography>
+    </Box>
+  )
+
   const displayFields = (
-    <Box sx={{ width: "100%" }}>
+    <Stack spacing={2} sx={{ width: "100%" }}>
       <InputField
         name="url"
         label="YouTube URL"
@@ -86,17 +108,16 @@ export function UrlForm({
         onChange={(e) => setUrl(e.target.value)}
         error={!!displayError}
         helperText={displayError}
-        sx={{ flex: 1, minWidth: 240 }}
+        margin="none"
       />
-      <Stack direction="row" spacing={2}>
+      <Stack direction="row" spacing={2} alignItems="center" useFlexGap sx={{ flexWrap: "wrap" }}>
         <LanguageSelect
           name="language"
           value={language}
           onChange={(language) => setLanguage(language)}
           helperText="Defaults to the video's language when left empty"
-          sx={{ minWidth: 160 }}
+          sx={{ flex: "1 1 240px", minWidth: 240 }}
         />
-
         <FormControlLabel
           control={
             <Checkbox
@@ -108,11 +129,20 @@ export function UrlForm({
           }
           label="Format"
         />
+        <Tooltip title="Clean up the raw transcript with the LLM: merge sources into structured Markdown.">
+          <IconButton
+            size="small"
+            aria-label="About the format option"
+            sx={{ color: "text.secondary", ml: -1.5 }}
+          >
+            <HelpOutlineRounded fontSize="small" />
+          </IconButton>
+        </Tooltip>
       </Stack>
       <ActionButton type="submit" loading={loading} fullWidth={!onSubmit}>
         Transcribe
       </ActionButton>
-    </Box>
+    </Stack>
   )
 
   // Show the stepper below the form, driven by real server progress (SSE).
@@ -126,11 +156,11 @@ export function UrlForm({
   if (onSubmit) {
     // Test/programmatic path: controlled form, no router required.
     return (
-      <Box
-        component="form"
-        onSubmit={handleSubmit}
-        sx={{ mb: 4, ...formLayout }}>
-        {displayFields}
+      <Box component="form" onSubmit={handleSubmit} sx={{ mb: 4 }}>
+        <Surface sx={cardSx}>
+          {header}
+          {displayFields}
+        </Surface>
         {stepper}
       </Box>
     )
@@ -139,10 +169,12 @@ export function UrlForm({
   // Production path: POSTs to the index route action (progressive enhancement).
   return (
     <Box sx={{ mb: 4 }}>
-      <Form method="post" style={{ ...formLayout }}>
-        {displayFields}
-      </Form>
+      <Surface sx={cardSx}>
+        {header}
+        <Form method="post">{displayFields}</Form>
+      </Surface>
       {stepper}
     </Box>
   )
 }
+

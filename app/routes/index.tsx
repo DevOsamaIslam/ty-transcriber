@@ -20,6 +20,7 @@ import { TranscriptFilter } from "../components/TranscriptFilter";
 import { UrlForm } from "../components/UrlForm";
 import type { TranscriptListFilter } from "../modules/storage";
 import { Box, Container, Typography } from "@mui/material";
+import { PageHeader } from "../components/ui/PageHeader";
 
 export async function loader({ request }: LoaderFunctionArgs) {
   const url = new URL(request.url);
@@ -226,21 +227,23 @@ export default function Index() {
   const serverError = actionData?.error ?? null;
 
   return (
-    <Container maxWidth="md" sx={{ my: 4 }}>
-      <Typography variant="h4" component="h1" sx={{ mb: 4, textAlign: "center" }}>
-        YouTube Transcriber
-      </Typography>
+    <Container maxWidth="md" sx={{ py: { xs: 3, md: 5 } }}>
+      <PageHeader
+        overline="Transcriber"
+        title="YouTube Transcriber"
+        subtitle="Paste a YouTube video or playlist URL to extract, format and archive the transcript."
+      />
       <UrlForm
         loading={submitting}
         serverError={serverError}
         progress={progress}
       />
       <TranscriptFilter />
-      <Box sx={{ mt: 6 }}>
+      <Box sx={{ mt: 5 }}>
         <Typography
           variant="body2"
           color="text.secondary"
-          sx={{ mb: 2 }}
+          sx={{ mb: 2, fontWeight: 600 }}
         >
           {transcripts.length} transcript{transcripts.length !== 1 ? "s" : ""} found{" "}
           {filter.query && `matching "${filter.query}"`}

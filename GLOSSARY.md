@@ -79,6 +79,10 @@ Search here first before reading entire files.
 - **`runCommandWithOutput(command)`** — Like `runCommand`, but resolves with the command's stdout (e.g. yt-dlp JSON output).
 - **`removeFile(filePath)`** — Deletes a file via `fs.promises.unlink`, ignores ENOENT errors.
 
+### `app/utils/format.ts`
+- **`formatDate(value)`** — Formats an ISO date string as a short locale date ("Jan 2, 2024"); returns the raw value unchanged when the date is invalid. Used by: `Sidebar`, `TranscriptCard`, `TranscriptViewer`.
+- **`excerpt(text, max = 180)`** — Collapses whitespace runs and truncates to `max` characters with an ellipsis; used to derive transcript-card previews from transcript bodies.
+
 ## Components (UI)
 
 ### `app/components/ui/ActionButton.tsx`
@@ -89,18 +93,22 @@ Search here first before reading entire files.
 
 ### `app/components/ui/Surface.tsx`
 - **`SurfaceProps`** (type) — MUI `CardProps`
-- **`Surface`** — MUI `Card` wrapper for consistent elevation and padding.
+- **`Surface`** — MUI `Card` wrapper: flat (elevation 0 by default) with a hairline border and a fixed 12px radius so surfaces read as consistent "sheets"; `elevation` and `sx` remain overridable by the caller.
 
 ### `app/components/ui/InputField.tsx`
 - **`InputFieldProps`** (type) — MUI `TextFieldProps`
-- **`InputField`** — MUI `TextField` with `margin="normal"` and `fullWidth` by default.
+- **`InputField`** — MUI `TextField` with `margin="normal"` and `fullWidth` defaults; both are overridable by the caller (e.g. `margin="none"` inside dense layouts).
 
 ### `app/components/ui/LoadingSpinner.tsx`
 - **`LoadingSpinner`** — MUI `CircularProgress` with `data-testid="loading-spinner"`.
 
 ### `app/components/ui/EmptyState.tsx`
-- **`EmptyStateProps`** (type) — `{ heading: string, message: string }`
-- **`EmptyState`** — Centered message with heading and body text for empty states.
+- **`EmptyStateProps`** (type) — `{ heading: string, message: string, icon?: ReactNode }`
+- **`EmptyState`** — Centered empty-state block: optional icon inside a soft brand-tinted circle, bold heading and secondary message.
+
+### `app/components/ui/PageHeader.tsx`
+- **`PageHeaderProps`** (type) — `{ title, overline?, subtitle?, backTo?: { to, label }, actions? }`.
+- **`PageHeader`** — Consistent page header used by every page route: optional back link, uppercase brand-accented overline, h1 title, subtitle, and a right-aligned action area.
 
 ### `app/components/ui/Logo.tsx`
 - **`LogoProps`** (type) — `{ sx? }`
@@ -108,16 +116,16 @@ Search here first before reading entire files.
 
 
 ### `app/components/TranscriptCard.tsx`
-- **`TranscriptCardProps`** (type) — `{ id, title, preview, sourceUrl, createdAt, source? }` — `source` is `"captions" | "whisper"`.
-- **`TranscriptCard`** — MUI Card showing title, preview text, date, and a View button linking to the transcript page; shows a "download/transcription skipped" hint when the video had YouTube captions.
+- **`TranscriptCardProps`** (type) — `{ id, title, preview?, transcript?, sourceUrl, createdAt, source?, channel? }` — `source` is `"captions" | "whisper"`. `preview` is derived from `transcript` (whitespace-collapsed 180-char excerpt) when omitted.
+- **`TranscriptCard`** — MUI Card for the results grid: the whole card is a react-router `Link` to the transcript page (client-side navigation), it lifts on hover, the title clamps to 2 lines and the preview to 3, the source renders as a brand-tinted chip with an explanatory tooltip ("download/transcription skipped" for captions), and the footer holds the date plus a View link.
 
 ### `app/components/TranscriptList.tsx`
-- **`TranscriptListProps`** (type) — `{ transcripts: Transcript[] }`
-- **`TranscriptList`** — MUI Grid mapping transcripts to `TranscriptCard` components. Shows `EmptyState` when no transcripts exist.
+- **`TranscriptListProps`** (type) — `{ transcripts: Array<{ id, title, transcript, sourceUrl, createdAt, source?, channel? }> }` — items are forwarded whole to `TranscriptCard` (so `source`/`channel` reach the cards).
+- **`TranscriptList`** — MUI Grid mapping transcripts to `TranscriptCard` components. Shows `EmptyState` (with a video icon) when no transcripts exist.
 
 ### `app/components/TranscriptViewer.tsx`
 - **`TranscriptViewerProps`** (type) — `{ transcript: Transcript }` — `Transcript` is the full storage DTO (title, channel, source, language, dates, source URL, id).
-- **`TranscriptViewer`** — MUI Surface showing the transcript title plus metadata (channel, source, language, upload/video date, source URL, id) rendered as MUI `List`/`ListItemText` key/value items inside a responsive `Grid` (two columns on medium+ screens, one column below) above the body. The body is rendered as Markdown (headings, lists, links, bold/italic/code) through the `Markdown` primitive instead of raw text; all text uses `dir="auto"` so Arabic/RTL transcripts render right-to-left without forcing the whole page RTL. Includes a Copy-to-clipboard button.
+- **`TranscriptViewer`** — Document-style viewer inside a `Surface`: a header block (title, channel chip + source chip with tooltip, saved date and a Copy-to-clipboard button) sits above a compact label/value metadata grid (source URL, playlist position, language, upload/video date, original title, id) and the body rendered as Markdown through the `Markdown` primitive. Channel and source appear once, as header chips. All text uses `dir="auto"` so Arabic/RTL transcripts render right-to-left without forcing the whole page RTL.
 
 ### `app/components/UrlForm.tsx`
 - **`UrlFormProps`** (type) — `{ onSubmit?: ({ url, language }: { url: string; language: string }) => void, loading?: boolean, serverError?: string | null }`
@@ -129,26 +137,26 @@ Search here first before reading entire files.
 
 ### `app/components/ui/StepsBox.tsx`
 - **`StepsBoxProps`** (type) — `{ steps: string[], activeIndex: number, heading? }`.
-- **`StepsBox`** — Animated step-by-step progress box inside a MUI `Surface`. Shows each step with a numbered circle (pending / active / complete) and a pulse animation on the active step; while a step is loading a spinner ring appears around its number (and the number stays visible), used while a transcription is in flight.
+- **`StepsBox`** — Animated step-by-step progress box inside a MUI `Surface`. Shows each step with a numbered circle (pending grey / active with amber ring + spinner / complete amber with dark check) and a pulse animation on the active step (the `pulse` keyframes are defined in the component's own sx — the old code referenced an undefined keyframe); the step number stays visible under the spinner ring.
 
 ### `app/components/ui/Markdown.tsx`
 - **`MarkdownProps`** (type) — `{ children: string }` — markdown source to render.
-- **`Markdown`** — Small markdown-to-MUI renderer: headings, thematic breaks, blockquotes, ordered/unordered lists, bold, italic, inline code and links. All text uses `dir="auto"` for RTL support.
+- **`Markdown`** — Small markdown-to-MUI renderer: headings, thematic breaks, amber-tinted blockquotes, lists with colored bullet/number markers, bold, italic, inline code (styled as a tinted code chip via `Typography component="code"` — a raw `<code sx>` previously dropped the styling) and warning-colored links. All text uses `dir="auto"` for RTL support.
 
 ### `app/components/UrlForm.tsx`
 - **`UrlFormProps`** (type) — `{ onSubmit?: ({ url, language, format }: { url: string; language: string; format: boolean }) => void, loading?: boolean, serverError?: string | null, progress?: JobProgress | null }`
-- **`UrlForm`** — URL entry form with a transcript language `LanguageSelect` and a "Format with LLM" checkbox. With `onSubmit`: controlled form (test path), called with `{ url, language, format }`. Without: React Router `<Form method="post">` posting `url`, `language` and `format` to the route action. While a job is in flight, renders an animated `StepsBox` below the form driven by real server progress (SSE). Validates non-empty input, shows `serverError`.
+- **`UrlForm`** — URL entry form inside a `Surface` card with an amber top accent and a "New transcription" heading: URL `InputField`, transcript language `LanguageSelect`, and a "Format with LLM" checkbox with a tooltip help icon. With `onSubmit`: controlled form (test path), called with `{ url, language, format }`. Without: React Router `<Form method="post">` posting `url`, `language` and `format` to the route action. While a job is in flight, renders an animated `StepsBox` below the form driven by real server progress (SSE). Validates non-empty input, shows `serverError`.
 
 ### `app/components/NavBar.tsx`
 - **`NavBarProps`** (type) — `{ onMenuClick?: () => void }` — opens the mobile history drawer from the hamburger (hidden above the `md` breakpoint where the sticky sidebar is permanent).
-- **`NavBar`** — Fixed top app bar: brand `Logo` linked to the home page and a mobile menu toggle wired to `onMenuClick`. Rendered by `root.tsx`.
+- **`NavBar`** — Fixed top app bar: brand `Logo` linked to the home page and a mobile menu toggle wired to `onMenuClick`. Flat and translucent (85% white + backdrop blur) with a hairline bottom border; the `Toolbar` is forced to a fixed 64px height on every breakpoint so the shell's `APP_BAR_HEIGHT` offset is exact (MUI's responsive 56→64px default would overlap content). Rendered by `root.tsx`.
 
 ### `app/components/Sidebar.tsx`
 - **`SidebarProps`** (type) — `{ transcripts: Transcript[], onClose? }` — `transcripts` are the stored transcripts newest first; `onClose` is called when a history item is chosen — passed only inside the mobile drawer (closes it); the desktop sticky sidebar omits it so clicks just navigate.
-- **`Sidebar`** — History panel: renders each saved transcript as a link to `/transcripts/:id` with its date and source ("Captions" / "Whisper" / "Unknown"), and an empty state when none exist. The app's single sidebar: sticky on desktop, inside a slide-in drawer on mobile.
+- **`Sidebar`** — History panel: uppercase "History" label with an item-count chip, each saved transcript as a rounded link to `/transcripts/:id` with its date and source ("Captions" / "Whisper" / "Unknown"), the current route's item highlighted (`useLocation`), an icon empty state when none exist, and an internally scrolling list. The panel is plain paper — the desktop shell draws the dividing border (previously both drew one, doubling it). The app's single sidebar: sticky on desktop, inside a slide-in drawer on mobile.
 
 ### `app/components/TranscriptFilter.tsx`
-- **`TranscriptFilter()`** — Search/filter bar for the stored transcripts on the home page. Text search (`q`) matches title, channel, original title and source URL; dropdowns filter by source (`captions`/`whisper`) and language, plus a channel input. Values live in URL search params, so changing a field re-runs the route loader; includes a clear-filters button and an active-filter chip.
+- **`TranscriptFilter()`** — Search/filter bar for the stored transcripts on the home page, grouped in a bordered paper toolbar. Text search (`q`) matches title, channel, original title and source URL; dropdowns filter by source (`captions`/`whisper`) and language, plus a channel input. Values live in URL search params, so changing a field re-runs the route loader; includes a clear-filters button (the redundant active-filter summary chip was removed in the design overhaul).
 
 ## Routes
 
@@ -174,7 +182,7 @@ Search here first before reading entire files.
 ### `app/routes/transcripts.$id.tsx`
 - **`loader`** — Calls `getTranscript(id)`, redirects to home if not found, returns plain object `{ transcript }`.
 - **`action`** — Re-triggers LLM formatting of the stored transcript in a background job (`formatTranscript` on the saved text keyed by its `source`, then `saveTranscript` overwrites it preserving `createdAt`); returns `{ jobId }` so the client streams progress via SSE to `/api/job/:jobId`.
-- **`TranscriptRoute`** — Renders `TranscriptViewer` plus a "Re-format with LLM" button; while a job is in flight shows a `StepsBox` driven by SSE progress, navigates back to the refreshed transcript page on `done`, and shows an `Alert` on error.
+- **`TranscriptRoute`** — Renders the transcript `PageHeader` (back link, Re-format action in the header) plus the `TranscriptViewer` (which carries the Copy-to-clipboard button in its header); while a job is in flight shows a `StepsBox` driven by SSE progress, navigates back to the refreshed transcript page on `done`, and shows an `Alert` on error.
 
 ### `app/routes/transcriptsPlaylist.tsx`
 - **`loader`** — Calls `listTranscripts({ playlistId })`, redirects home if the param is missing, returns `{ transcripts, playlistId }`.
@@ -193,7 +201,8 @@ Search here first before reading entire files.
 - Omitted — React Router v8 provides a built-in default SSR entry (streaming, error boundaries, bot detection). A custom entry that wires `createRequestHandler` to a global build fails at runtime with "Cannot read properties of undefined (reading 'routes')"; if re-adding one, accept the framework-provided `EntryContext` in `handleRequest(request, status, headers, context)` instead.
 
 ### `app/root.tsx`
-- **`theme`** (const) — MUI theme (light mode) using the brand palette: primary `#FFB81C` (amber) with dark contrast text `#202532`, secondary `#C9004B` (crimson) with white contrast text, warning `#B83E0A` (dark orange) for small text on light backgrounds, background `#FFF9F2`, paper `#FFFFFF`, text primary `#202532`, text secondary `#737987`, divider `#E9E5E0`. Typography uses `Noto Sans Arabic` as the primary font family (loaded from Google Fonts in `<head>`), falling back to the system sans-serif stack, so Arabic transcripts render with proper glyph coverage. ~80–90% of the interface stays neutral; warm colors are reserved for important actions and branding. Used by `ThemeProvider`; extended here rather than per component.
+- **`theme`** (const) — MUI theme (light mode) using the brand palette: primary `#FFB81C` (amber) with dark contrast text `#202532`, secondary `#C9004B` (crimson) with white contrast text, warning `#B83E0A` (dark orange) for small text on light backgrounds, background `#FFF9F2`, paper `#FFFFFF`, text primary `#202532`, text secondary `#737987`, divider `#E9E5E0`. Typography uses `Noto Sans Arabic` as the primary font family (weights 400–700 loaded from Google Fonts in `<head>`), falling back to the system sans-serif stack, so Arabic transcripts render with proper glyph coverage; headings are weight 700 with tight letter-spacing, body1 uses a 1.7 line-height for transcript readability, and buttons are sentence-case. The theme also sets `shape.borderRadius: 10`, a soft layered shadow scale (quieter than MUI defaults), and component overrides: sentence-case non-elevated buttons with an orange-tinted hover shadow, 8px-radius inputs, 8px-radius list items, chips and alerts. ~80–90% of the interface stays neutral; warm colors are reserved for important actions and branding. Used by `ThemeProvider`; extended here rather than per component.
+- **`GlobalStyles`** — Mounted right after `CssBaseline` in `Root`: slim neutral scrollbars (webkit + Firefox) and a brand-tinted amber text selection.
 - **CSS custom properties** — `:root` in `index.html` exposes `--brand-amber`, `--brand-orange`, `--brand-coral`, `--brand-crimson`, `--text-dark-orange`, `--background`, `--surface`, `--text-primary`, `--text-secondary`, `--border`, and `--brand-gradient`.
 - **`loader`** — Lists all stored transcripts (`listTranscripts`; degrades to `[]` if the database is unavailable) so the shell's history sidebar is populated on every route.
 - **`Root`** — App shell: fixed `NavBar` app bar (hamburger opens the mobile drawer), the one sticky history `Sidebar` on desktop — it starts below the fixed app bar and scrolls with the page — item clicks only navigate, they never open a drawer — or the same `Sidebar` in a temporary `Drawer` on mobile (closes on item click / backdrop). Drawer state uses explicit open/close handlers, never a toggle. (`LiveReload` is not exported in React Router v8 — do not re-add.)

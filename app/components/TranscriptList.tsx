@@ -1,5 +1,6 @@
 import React from "react";
 import { Grid } from "@mui/material";
+import { SmartDisplayRounded } from "@mui/icons-material";
 import { EmptyState } from "./ui/EmptyState";
 import { TranscriptCard } from "./TranscriptCard";
 
@@ -10,6 +11,8 @@ export type TranscriptListProps = {
     transcript: string;
     sourceUrl: string;
     createdAt: string;
+    source?: "captions" | "whisper";
+    channel?: string;
   }>;
 };
 
@@ -19,6 +22,7 @@ export function TranscriptList({ transcripts }: TranscriptListProps) {
       <EmptyState
         heading="No transcripts yet"
         message="Add a YouTube URL to get started."
+        icon={<SmartDisplayRounded sx={{ fontSize: 28 }} />}
       />
     );
   }

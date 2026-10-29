@@ -1,6 +1,7 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect } from "vitest";
 import { render, screen } from "@testing-library/react";
 import React from "react";
+import { MemoryRouter } from "react-router";
 import { TranscriptList } from "./TranscriptList";
 
 describe("TranscriptList", () => {
@@ -26,7 +27,11 @@ describe("TranscriptList", () => {
         createdAt: "2024-01-02T00:00:00Z",
       },
     ];
-    render(<TranscriptList transcripts={transcripts} />);
+    render(
+      <MemoryRouter>
+        <TranscriptList transcripts={transcripts} />
+      </MemoryRouter>
+    );
     expect(screen.getByText("Video A")).toBeInTheDocument();
     expect(screen.getByText("Video B")).toBeInTheDocument();
   });

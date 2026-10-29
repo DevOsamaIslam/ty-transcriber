@@ -52,9 +52,21 @@ function parseInline(text: string): React.ReactNode {
     } else if (code) {
       flush();
       nodes.push(
-        <code key={i} sx={{ fontFamily: "monospace" }}>
+        <Typography
+          key={i}
+          component="code"
+          sx={{
+            fontFamily: "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace",
+            fontSize: "0.9em",
+            bgcolor: "rgba(32, 37, 50, 0.06)",
+            borderRadius: "4px",
+            px: 0.75,
+            py: "2px",
+            wordBreak: "break-word",
+          }}
+        >
           {code[1]}
-        </code>
+        </Typography>
       );
       i += code[0].length;
     } else if (link) {
@@ -66,7 +78,7 @@ function parseInline(text: string): React.ReactNode {
           href={link[2]}
           target="_blank"
           rel="noopener"
-          sx={{ color: "primary", textDecoration: "underline", wordBreak: "break-all" }}
+          sx={{ color: "warning.main", fontWeight: 500, textDecoration: "underline", wordBreak: "break-all" }}
         >
           {parseInline(link[1])}
         </Link>
@@ -108,7 +120,7 @@ function parseBlocks(text: string): React.ReactNode[] {
           variant={HEADING_VARIANTS[level]}
           component={`h${level}` as React.ComponentProps<typeof Typography>["component"]}
           dir="auto"
-          sx={{ mb: 2, mt: level === 1 ? 3 : 0 }}
+          sx={{ mt: i === 0 ? 0 : 3, mb: 1.5 }}
         >
           {parseInline(heading[2].trim())}
         </Typography>
@@ -120,14 +132,33 @@ function parseBlocks(text: string): React.ReactNode[] {
     const listLines = nonEmpty.filter((line) => LIST_ITEM.test(line));
     if (listLines.length > 0 && listLines.length === nonEmpty.length) {
       nodes.push(
-        <List key={i} dense sx={{ mb: 2, pl: 2 }}>
-          {listLines.map((line, j) => (
-            <ListItem key={j} disablePadding sx={{ mb: 0.5 }}>
-              <Typography variant="body1" dir="auto" sx={{ mx: 0 }}>
-                {parseInline(line.replace(LIST_ITEM, "$2"))}
-              </Typography>
-            </ListItem>
-          ))}
+        <List key={i} dense sx={{ mb: 2, py: 0 }}>
+          {listLines.map((line, j) => {
+            const marker = (line.match(LIST_ITEM) ?? [])[1] ?? "•";
+            const bullet = /^\d+\./.test(marker) ? marker : "•";
+            return (
+              <ListItem
+                key={j}
+                disablePadding
+                sx={{ mb: 0.5, display: "flex", alignItems: "baseline", gap: 1 }}
+              >
+                <Box
+                  component="span"
+                  sx={{
+                    color: "warning.main",
+                    fontWeight: 700,
+                    flexShrink: 0,
+                    minWidth: "1.4em",
+                  }}
+                >
+                  {bullet}
+                </Box>
+                <Typography variant="body1" dir="auto" sx={{ mx: 0, minWidth: 0 }}>
+                  {parseInline(line.replace(LIST_ITEM, "$2"))}
+                </Typography>
+              </ListItem>
+            );
+          })}
         </List>
       );
       continue;
@@ -144,9 +175,13 @@ function parseBlocks(text: string): React.ReactNode[] {
           color="text.secondary"
           dir="auto"
           sx={{
-            pl: 1.5,
-            borderLeft: "2px solid",
-            borderColor: "divider",
+            pl: 2,
+            pr: 1.5,
+            py: 1,
+            borderLeft: "3px solid",
+            borderColor: "primary.main",
+            bgcolor: "rgba(255, 184, 28, 0.08)",
+            borderRadius: "0 8px 8px 0",
             my: 2,
             fontStyle: "italic",
           }}

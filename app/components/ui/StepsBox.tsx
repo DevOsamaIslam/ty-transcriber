@@ -50,26 +50,35 @@ export function StepsBox({ steps, activeIndex, heading = "Transcribing…" }: St
               )}
               <Box
                 sx={{
-                  width: 20,
-                  height: 20,
+                  width: 22,
+                  height: 22,
                   borderRadius: "50%",
                   backgroundColor: isComplete
                     ? "primary.main"
                     : isActive
-                    ? "warning.main"
+                    ? "background.paper"
                     : "divider",
-                  color: isActive ? "common.white" : isComplete ? "text.primary" : "text.secondary",
+                  color: isComplete
+                    ? "#202532"
+                    : isActive
+                    ? "text.primary"
+                    : "text.secondary",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  fontSize: 12,
+                  fontSize: 11,
                   fontWeight: "bold",
                   flexShrink: 0,
-                  border: isActive ? "2px solid currentColor" : undefined,
-                  boxShadow: isActive
-                    ? "0 0 0 4px rgba(255, 184, 28, 0.25)"
-                    : undefined,
-                  animation: isActive ? "pulse 1.5s infinite" : undefined,
+                  border: isActive ? "2px solid" : undefined,
+                  borderColor: isActive ? "primary.main" : undefined,
+                  // Defined here so the pulse animation actually exists —
+                  // the previous code referenced an undefined keyframe.
+                  "@keyframes pulse": {
+                    "0%": { boxShadow: "0 0 0 0 rgba(255, 107, 26, 0.35)" },
+                    "70%": { boxShadow: "0 0 0 8px rgba(255, 107, 26, 0)" },
+                    "100%": { boxShadow: "0 0 0 0 rgba(255, 107, 26, 0)" },
+                  },
+                  animation: isActive ? "pulse 1.8s ease-out infinite" : undefined,
                   position: "relative",
                 }}
               >
