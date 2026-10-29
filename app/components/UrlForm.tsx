@@ -110,7 +110,12 @@ export function UrlForm({
         helperText={displayError}
         margin="none"
       />
-      <Stack direction="row" spacing={2} alignItems="center" useFlexGap sx={{ flexWrap: "wrap" }}>
+      <Stack
+        direction="row"
+        spacing={2}
+        useFlexGap
+        sx={{ alignItems: "center", flexWrap: "wrap" }}
+      >
         <LanguageSelect
           name="language"
           value={language}
