@@ -211,6 +211,13 @@ Search here first before reading entire files.
 ### `cli/index.ts` (project root)
 - Guided CLI binary (`npm run cli`, runs via `node --import tsx`): prompts for a YouTube video **or playlist** URL, then an optional transcript language (empty = video's default language). Accepts a `--format` flag (default off): when set, the transcript is fed through the LLM formatter (`formatTranscript`) before saving; when omitted, the raw transcript is saved. Single video: `[1/N]` metadata (`getVideoMetadata`), `[2/N]` existing captions (`fetchYouTubeTranscript` with `language`; when found, download + Whisper are **skipped**), `[3/N]` Whisper extraction (only when captions are missing: `downloadAudio` → `decodeAudioToPCM` → `transcribeWithWhisper` with `language` → `cleanupAudio`), optional `[4/N]` LLM formatting (only with `--format`), `[last/N]` saves the markdown doc (`writeMarkdownFile`) under `transcripts/<channel>/`. Playlist: lists every video (`fetchPlaylist`), then per video — metadata, captions or "**download/transcription skipped**", optional Whisper download+transcribe fallback, optional LLM formatting, saves under `transcripts/<channel>/<playlist>/`; videos with no transcript at all are warned and skipped. Uses `node:readline/promises`; re-asks until a valid URL is entered.
 
+### `app/routes/api.agent.transcripts.$id.tsx`
+- **`loader`** — Agent-facing transcript retrieval endpoint (`GET /api/agent/transcripts/:id`), no account/session required. Returns `{ transcript }` as JSON; 400 on missing id, 404 (via `data()`) when not found. This is the merchant backend the Agent Commerce Gateway fronts as the paid `transcript_get` resource (0.01 USDC per retrieval via x402); see `agent-commerce/config.example.yaml`.
+
+### `agent-commerce/` (project root)
+- **`config.example.yaml`** — Agent Commerce Gateway configuration: exposes `transcript_get` as a paid resource (`pricing: fixed, amount "0.01", currency USDC`, `payments: [x402]`, `expose: [http, mcp]`) proxying `${MERCHANT_API_BASE_URL}/api/agent/transcripts/{id}`. Defaults to Base Sepolia USDC with the public x402.org facilitator; `payTo` comes from `MERCHANT_WALLET`. Copy to `config.yaml` and run via the `@devlab.group/agent-commerce` CLI.
+- **`README.md`** — Gateway setup guide: surfaces (MCP `/mcp`, HTTP invoke), env vars, Base Sepolia vs mainnet notes.
+
 ### `react-router.config.ts` (project root)
 - React Router v8 framework configuration (`ssr: true`). Must live at the project root next to `vite.config.ts`; a copy inside `app/` is ignored by the plugin.
 
